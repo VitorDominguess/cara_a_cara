@@ -1,0 +1,1014 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<title>Duelo de Rostos - Remoto</title>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&family=Orbitron:wght@500;700;900&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg-dark: #0a0f1c;
+    --p1-color: #00f0ff;
+    --p1-glow: rgba(0, 240, 255, 0.4);
+    --p2-color: #ff003c;
+    --p2-glow: rgba(255, 0, 60, 0.4);
+    --card-bg: rgba(30, 41, 59, 0.85);
+    --glass-bg: rgba(16, 25, 43, 0.75);
+    --good: #00ff88;
+    --warn: #ffcc00;
+  }
+  * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+  html, body { margin:0; padding:0; }
+  body {
+    background: radial-gradient(circle at 50% 0%, #1a2342, var(--bg-dark) 60%);
+    background-attachment: fixed;
+    color: white;
+    font-family: 'Inter', sans-serif;
+    min-height: 100dvh;
+    overflow-x: hidden;
+  }
+  h1,h2,h3,.mono { font-family: 'Orbitron', sans-serif; text-transform: uppercase; margin:0; }
+  button { font-family: inherit; }
+  .screen { display:none; min-height:100dvh; flex-direction:column; }
+  .screen.show { display:flex; }
+  .hidden { display:none !important; }
+  .container { width:100%; max-width: 480px; margin:0 auto; padding: 20px 16px; }
+
+  .glass-panel {
+    background: var(--glass-bg);
+    backdrop-filter: blur(16px);
+    border: 1px solid rgba(255,255,255,0.08);
+    padding: 1.6rem;
+    border-radius: 18px;
+    box-shadow: 0 10px 40px rgba(0,0,0,0.6), inset 0 0 20px rgba(255,255,255,0.02);
+  }
+  input {
+    width: 100%; padding: 14px; border-radius: 10px;
+    border: 1px solid rgba(255,255,255,0.2); background: rgba(0,0,0,0.3);
+    color: white; font-family: 'Orbitron', sans-serif; font-size: 1.05rem;
+    outline: none; margin: 8px 0 18px;
+  }
+  input:focus { border-color: var(--p1-color); box-shadow: 0 0 10px var(--p1-glow); }
+  label { font-size: 0.8rem; color:#a0aec0; letter-spacing: 0.5px; text-transform: uppercase; }
+
+  .btn {
+    width: 100%; padding: 16px; border: none; border-radius: 12px;
+    font-family: 'Orbitron', sans-serif; font-weight: 900; font-size: 1.05rem;
+    text-transform: uppercase; letter-spacing: 0.5px; cursor: pointer; min-height: 52px;
+    transition: transform 0.15s ease, box-shadow 0.15s ease;
+  }
+  .btn:active { transform: scale(0.97); }
+  .btn-primary { background: linear-gradient(90deg, var(--p1-color), #00a2ff); color:#000; box-shadow: 0 6px 20px var(--p1-glow); }
+  .btn-secondary { background: rgba(255,255,255,0.06); color:white; border: 1px solid rgba(255,255,255,0.2); margin-top: 12px; }
+  .btn-danger { background: linear-gradient(90deg, var(--p2-color), #a30022); color:white; box-shadow: 0 6px 20px var(--p2-glow); }
+  .btn-warn { background: linear-gradient(90deg, #ffcc00, #ff9500); color:#000; box-shadow: 0 6px 20px rgba(255,204,0,0.35); }
+  .btn-small { min-height: 42px; padding: 10px 14px; font-size: 0.8rem; }
+  .btn[disabled] { opacity:0.4; cursor:not-allowed; }
+  .divider { text-align:center; color:#556; font-size:0.75rem; letter-spacing:2px; margin: 22px 0; text-transform:uppercase; }
+
+  /* --- LOBBY --- */
+  #screen-setup .container { justify-content:center; flex:1; display:flex; flex-direction:column; }
+  .logo { text-align:center; margin-bottom: 30px; }
+  .logo h1 { font-size: 2.1rem; color: var(--p1-color); text-shadow: 0 0 15px var(--p1-glow); }
+  .logo p { color:#a0aec0; margin-top:6px; font-size:0.9rem; }
+  .form-alert { color: var(--warn); font-size: 0.82rem; text-align:center; min-height: 18px; margin-top: 8px; }
+  .rules { color:#7c8aa5; font-size:0.74rem; line-height:1.5; text-align:center; margin-top: 16px; }
+
+  /* --- WAITING --- */
+  #screen-waiting .container { flex:1; display:flex; flex-direction:column; justify-content:center; align-items:center; text-align:center; }
+  .room-code {
+    font-family: 'Orbitron', sans-serif; font-size: 3rem; letter-spacing: 8px;
+    padding: 20px 10px 20px 18px; border: 2px dashed var(--p1-color); border-radius: 14px; margin: 20px 0;
+    color: var(--p1-color); text-shadow: 0 0 15px var(--p1-glow); cursor: pointer;
+  }
+  .spinner {
+    width: 34px; height: 34px; border: 3px solid rgba(255,255,255,0.15); border-top-color: var(--p1-color);
+    border-radius: 50%; animation: spin 0.8s linear infinite; margin: 18px auto;
+  }
+  @keyframes spin { to { transform: rotate(360deg); } }
+
+  /* --- GAME --- */
+  #topbar {
+    position: sticky; top:0; z-index: 30; display:flex; align-items:center; gap:8px;
+    padding: 10px 14px; background: rgba(10,15,28,0.88); backdrop-filter: blur(10px);
+    border-bottom: 1px solid rgba(255,255,255,0.08);
+  }
+  .player-tag { flex:1; min-width:0; }
+  .player-tag .pname { font-family:'Orbitron',sans-serif; font-size: 0.85rem; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+  .player-tag.me .pname { color: var(--p1-color); }
+  .player-tag.opp { text-align:right; }
+  .player-tag.opp .pname { color: var(--p2-color); }
+  .player-tag .psub { font-size:0.65rem; color:#7c8aa5; margin-top:2px; }
+  .vs { font-family:'Orbitron',sans-serif; font-size:0.7rem; color:#556; }
+  #turn-indicator {
+    font-family:'Orbitron',sans-serif; text-align:center; font-size: 0.78rem; letter-spacing: 1px;
+    padding: 8px 10px; background: rgba(255,255,255,0.04);
+  }
+  #turn-indicator.mine { color: var(--good); }
+  #turn-indicator.theirs { color:#a0aec0; }
+  #turn-indicator.end { color: var(--warn); }
+
+  #offline-banner { background: rgba(255,204,0,0.12); color: var(--warn); text-align:center; font-size:0.78rem; padding: 6px 10px; }
+
+  #my-secret {
+    display:flex; align-items:center; gap:10px; margin: 10px 14px 0;
+    padding: 8px 12px; border-radius: 12px; background: rgba(0,240,255,0.07);
+    border: 1px solid rgba(0,240,255,0.25); font-size: 0.8rem;
+  }
+  #my-secret .mini { width: 34px; height: 41px; border-radius: 8px; overflow:hidden; flex:none; }
+  #my-secret .mini svg { width:100%; height:100%; display:block; }
+  #my-secret b { font-family:'Orbitron',sans-serif; color: var(--p1-color); }
+
+  #qa-banner {
+    margin: 10px 14px 0; padding: 10px 12px; border-radius: 12px; font-size: 0.85rem; line-height: 1.35;
+    background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.12);
+    display:flex; align-items:center; justify-content:space-between; gap:10px; flex-wrap:wrap;
+  }
+  #qa-banner .ans { font-family:'Orbitron',sans-serif; font-weight:900; }
+  #qa-banner .ans.yes { color: var(--good); }
+  #qa-banner .ans.no { color: var(--p2-color); }
+
+  #board-wrap { padding: 14px; display:flex; justify-content:center; }
+  #board { display:grid; grid-template-columns: repeat(4, 1fr); gap: 8px; width: 100%; max-width: 560px; }
+  .card {
+    position:relative; display:flex; flex-direction:column; padding:0; overflow:hidden;
+    border: 2px solid rgba(255,255,255,0.15); border-radius: 12px; background: var(--card-bg);
+    color:white; cursor:pointer; box-shadow: 0 6px 12px rgba(0,0,0,0.4);
+    transition: transform .25s ease, border-color .2s ease, box-shadow .2s ease;
+  }
+  .card .av { width:100%; aspect-ratio: 100/120; display:block; transition: opacity .25s, filter .25s; }
+  .card .av svg { width:100%; height:100%; display:block; }
+  .card .cname { font-size:0.68rem; font-weight:600; padding: 4px 2px 5px; text-align:center; background: rgba(0,0,0,0.5); transition: opacity .25s; }
+  .card.down { transform: scale(0.93); }
+  .card.down .av, .card.down .cname { opacity: .25; filter: grayscale(1); }
+  .card.down .cname { text-decoration: line-through; }
+  .card.down::after {
+    content:'✕'; position:absolute; inset:0; display:flex; align-items:center; justify-content:center;
+    font-size: 2.8rem; font-weight:900; color: var(--p2-color); text-shadow: 0 0 12px var(--p2-glow); pointer-events:none;
+  }
+  .card.sel { border-color: var(--p1-color); box-shadow: 0 0 18px var(--p1-glow); transform: translateY(-3px); }
+  .card.mine::before { content:'⭐'; position:absolute; top:3px; right:4px; z-index:2; font-size:0.95rem; filter: drop-shadow(0 1px 2px #000); }
+  @keyframes pulse { 0%,100% { box-shadow: 0 0 0 rgba(255,204,0,0);} 50% { box-shadow: 0 0 14px rgba(255,204,0,0.7);} }
+  body.guessing .card:not(.down) { border-color: var(--warn); animation: pulse 1s infinite; }
+
+  details#history { margin: 0 14px 12px; font-size: 0.8rem; color:#a0aec0; }
+  details#history summary { cursor:pointer; padding: 6px 0; font-family:'Orbitron',sans-serif; font-size:0.72rem; letter-spacing:1px; text-transform:uppercase; }
+  #hist-list { margin: 6px 0 0; padding-left: 18px; line-height: 1.6; max-height: 160px; overflow:auto; }
+  #hist-list .yes { color: var(--good); font-weight:700; }
+  #hist-list .no { color: var(--p2-color); font-weight:700; }
+
+  #panel {
+    position: sticky; bottom:0; z-index: 25; margin-top:auto;
+    background: rgba(10,15,28,0.96); backdrop-filter: blur(10px);
+    border-top: 1px solid rgba(255,255,255,0.1);
+    padding: 12px 14px calc(12px + env(safe-area-inset-bottom));
+    max-height: 38vh; overflow:auto;
+  }
+  #my-secret, #qa-banner, details#history, #leave-btn { width: calc(100% - 28px); max-width: 792px; margin-left:auto; margin-right:auto; }
+  #panel p.hint { margin:0 0 10px; font-size:0.82rem; color:#a0aec0; line-height:1.4; }
+  .panel-head { display:flex; justify-content:space-between; align-items:center; margin-bottom: 8px; cursor:pointer; }
+  .panel-head h3 { font-size:0.78rem; color: var(--good); letter-spacing:1px; }
+  .panel-head span { color:#a0aec0; font-size:0.8rem; }
+  .qgroup { margin-bottom: 10px; }
+  .qgroup h4 { margin: 0 0 6px; font-size: 0.66rem; color:#7c8aa5; letter-spacing: 1px; text-transform: uppercase; font-family:'Orbitron',sans-serif; }
+  .chips { display:flex; flex-wrap:wrap; gap:8px; }
+  .chip {
+    padding: 10px 12px; border-radius: 999px; border:1px solid rgba(255,255,255,0.2);
+    background: rgba(255,255,255,0.06); color:white; font-size:0.82rem; cursor:pointer; min-height: 40px;
+  }
+  .chip:active { transform: scale(0.96); }
+  .chip[disabled] { opacity:0.25; text-decoration: line-through; cursor:not-allowed; }
+  #panel.collapsed .qbody { display:none; }
+  .row-btns { display:flex; gap:10px; }
+  .row-btns .btn { margin-top:0; }
+
+  #leave-btn { margin-top: 0; margin-bottom: 14px; }
+
+  #toast {
+    position: fixed; top:-100px; left:50%; transform:translateX(-50%);
+    background: rgba(10,15,28,0.95); border:2px solid var(--good); padding: 12px 26px; border-radius: 30px;
+    z-index: 3000; font-weight:bold; font-family:'Orbitron',sans-serif; font-size:0.8rem; text-align:center;
+    box-shadow: 0 10px 30px rgba(0,0,0,0.8), 0 0 20px rgba(0,255,136,0.4);
+    transition: top 0.4s cubic-bezier(.68,-0.55,.265,1.55); max-width: 90vw;
+  }
+  #toast.show { top: calc(env(safe-area-inset-top) + 10px); }
+  #toast.bad { border-color: var(--warn); box-shadow: 0 10px 30px rgba(0,0,0,0.8), 0 0 20px rgba(255,204,0,0.4); }
+
+  .overlay {
+    position: fixed; inset:0; background: rgba(5,8,16,0.9); backdrop-filter: blur(6px);
+    display:none; align-items:center; justify-content:center; z-index: 2000; padding: 20px;
+  }
+  .overlay.show { display:flex; }
+  .modal { text-align:center; width:100%; max-width: 380px; }
+  .modal h1 { font-size: 1.5rem; color: var(--good); text-shadow: 0 0 15px rgba(0,255,136,0.5); margin-bottom: 10px; }
+  .modal h1.lose { color: var(--p2-color); text-shadow: 0 0 15px var(--p2-glow); }
+  .modal h2 { font-size: 1.15rem; color: var(--warn); margin-bottom: 10px; }
+  .modal p { color:#a0aec0; font-size:0.9rem; line-height:1.4; margin: 6px 0 14px; }
+  .reveal { display:flex; gap:14px; justify-content:center; margin: 14px 0; }
+  .reveal figure { margin:0; width: 42%; }
+  .reveal .rav { border-radius: 12px; overflow:hidden; border:2px solid rgba(255,255,255,0.2); aspect-ratio:100/120; background:#1e293b; display:flex; align-items:center; justify-content:center; color:#556; }
+  .reveal .rav svg { width:100%; height:100%; display:block; }
+  .reveal figcaption { font-size:0.72rem; margin-top:6px; color:#a0aec0; }
+  .reveal figcaption b { display:block; color:white; font-family:'Orbitron',sans-serif; font-size:0.8rem; }
+  .confirm-av { width: 96px; margin: 0 auto 6px; border-radius: 12px; overflow:hidden; }
+  .confirm-av svg { width:100%; display:block; }
+
+  @media (min-width: 600px) {
+    .container { padding: 40px 16px; }
+    #board { grid-template-columns: repeat(6, 1fr); gap: 12px; max-width: 820px; }
+    #panel { max-width: 820px; width:100%; margin-left:auto; margin-right:auto; border-radius: 14px 14px 0 0; }
+  }
+</style>
+</head>
+<body>
+
+<div id="toast"></div>
+
+<!-- SETUP / LOBBY -->
+<section id="screen-setup" class="screen show">
+  <div class="container">
+    <div class="logo">
+      <h1>Duelo de Rostos</h1>
+      <p>Adivinhe o personagem secreto · cada um no seu aparelho</p>
+    </div>
+    <div class="glass-panel">
+      <label for="name-input">Seu nome</label>
+      <input id="name-input" type="text" maxlength="16" placeholder="Ex: Ana">
+
+      <button class="btn btn-primary" id="btn-create">Criar Sala</button>
+
+      <div class="divider">ou</div>
+
+      <label for="join-code-input">Código da sala</label>
+      <input id="join-code-input" type="text" maxlength="4" placeholder="EX: A1B2" style="text-transform:uppercase; letter-spacing:4px; text-align:center;">
+      <button class="btn btn-secondary" id="btn-join">Entrar em Sala</button>
+
+      <div class="form-alert" id="form-alert"></div>
+      <div class="rules">Cada um escolhe um personagem em segredo. Alternem perguntas de sim/não, eliminem rostos e descubram o do outro primeiro. <b>Chute errado = derrota.</b></div>
+    </div>
+  </div>
+</section>
+
+<!-- WAITING ROOM -->
+<section id="screen-waiting" class="screen">
+  <div class="container">
+    <h2 style="text-align:center; color:#a0aec0; font-size:1rem; letter-spacing:1px;">Envie este código para seu adversário</h2>
+    <div class="room-code" id="room-code" title="Toque para copiar">----</div>
+    <p style="color:#556; font-size:0.75rem; text-align:center;">Toque no código para copiar</p>
+    <div class="spinner"></div>
+    <p style="text-align:center; color:#a0aec0;">Aguardando o oponente entrar...</p>
+    <button class="btn btn-danger" style="margin-top:30px;" id="btn-cancel">Cancelar</button>
+  </div>
+</section>
+
+<!-- GAME -->
+<section id="screen-game" class="screen">
+  <div id="topbar">
+    <div class="player-tag me"><div class="pname" id="me-name">Você</div><div class="psub">você</div></div>
+    <div class="vs">VS</div>
+    <div class="player-tag opp"><div class="pname" id="opp-name">Oponente</div><div class="psub" id="opp-sub">&nbsp;</div></div>
+  </div>
+  <div id="turn-indicator">Carregando...</div>
+  <div id="offline-banner" class="hidden">⚠️ Oponente desconectado… esperando ele voltar</div>
+  <div id="my-secret" class="hidden"><div class="mini" id="my-secret-av"></div><div>Seu personagem secreto:<br><b id="my-secret-name">-</b></div></div>
+  <div id="qa-banner" class="hidden"></div>
+  <div id="board-wrap"><div id="board"></div></div>
+  <details id="history"><summary>Histórico (<span id="hist-count">0</span>)</summary><ol id="hist-list"></ol></details>
+
+  <div id="panel">
+    <div id="panel-pick" class="hidden">
+      <p class="hint">Toque em um rosto para escolher o seu personagem secreto. O oponente não vê qual foi.</p>
+      <div class="row-btns">
+        <button class="btn btn-secondary btn-small" id="btn-random">🎲 Sortear</button>
+        <button class="btn btn-primary btn-small" id="btn-confirm-pick" disabled>Confirmar</button>
+      </div>
+    </div>
+    <div id="panel-ask" class="hidden">
+      <div class="panel-head" id="ask-head"><h3>🎯 Sua vez · escolha uma pergunta</h3><span id="ask-toggle">▾</span></div>
+      <div class="qbody">
+        <div id="questions"></div>
+        <button class="btn btn-warn btn-small" id="btn-guess" style="margin-top:4px;">🎯 Chutar personagem</button>
+      </div>
+    </div>
+    <div id="panel-guess" class="hidden">
+      <p class="hint" style="color:var(--warn)">Toque no rosto que você acha que é o do oponente. Se errar, você perde!</p>
+      <button class="btn btn-secondary btn-small" id="btn-guess-cancel" style="margin-top:0;">Cancelar chute</button>
+    </div>
+    <div id="panel-info" class="hidden"><p class="hint" id="info-text" style="margin:0;"></p></div>
+  </div>
+  <button class="btn btn-secondary btn-small" id="leave-btn">Sair da sala</button>
+</section>
+
+<!-- CONFIRM MODAL -->
+<div class="overlay" id="confirm-overlay">
+  <div class="glass-panel modal">
+    <div id="cf-extra"></div>
+    <h2 id="cf-title">Confirmar?</h2>
+    <p id="cf-text"></p>
+    <button class="btn btn-primary" id="cf-ok">Confirmar</button>
+    <button class="btn btn-secondary" id="cf-cancel">Cancelar</button>
+  </div>
+</div>
+
+<!-- END MODAL -->
+<div class="overlay" id="end-overlay">
+  <div class="glass-panel modal">
+    <h1 id="end-title">Fim de jogo</h1>
+    <p id="end-reason"></p>
+    <div class="reveal" id="end-reveal"></div>
+    <button class="btn btn-primary" id="btn-again">Jogar Novamente</button>
+  </div>
+</div>
+
+<script type="module">
+/* ============================================================
+   CONFIGURAÇÃO DO FIREBASE (mesmo projeto do Memory Wars)
+   As chaves são públicas. O que protege os dados são as
+   REGRAS do Realtime Database (veja o README / resumo).
+   ============================================================ */
+const firebaseConfig = {
+  apiKey: "AIzaSyACkQvVLWyCItyEjPaMRpYSgsP2luAq2WQ",
+  authDomain: "memory-wars-6bb6b.firebaseapp.com",
+  databaseURL: "https://memory-wars-6bb6b-default-rtdb.firebaseio.com",
+  projectId: "memory-wars-6bb6b",
+  storageBucket: "memory-wars-6bb6b.firebasestorage.app",
+  messagingSenderId: "635970774104",
+  appId: "1:635970774104:web:9b432ef95c179939a5d62d"
+};
+const ROOT = 'duelo_rostos';          // caminho no banco (separado do Memory Wars)
+const FB_VER = '10.12.2';
+const MOCK = new URLSearchParams(location.search).has('mock'); // teste local sem Firebase (duas abas)
+
+/* ============================================================
+   PERSONAGENS (originais, desenhados em SVG a partir de atributos)
+   flags: o=óculos h=chapéu b=barba m=bigode e=brinco s=sardas r=sorriso t=gravata
+   ============================================================ */
+const HAIR = { preto:'#1b1b1f', castanho:'#6b3f23', loiro:'#e2b94b', ruivo:'#c2501f', grisalho:'#b9bec7' };
+const SKINS  = ['#f6d2b0','#e8b88a','#c98f61','#9b6a43','#6f4a2f','#f1c8a0'];
+const SHIRTS = ['#2563eb','#db2777','#16a34a','#f59e0b','#7c3aed','#0891b2','#dc2626','#475569'];
+const BGS    = ['#dbeafe','#fce7f3','#dcfce7','#fef3c7','#ede9fe','#cffafe','#fee2e2','#e2e8f0'];
+const HATS   = ['#dc2626','#2563eb','#16a34a','#7c3aed','#92400e','#0f766e'];
+const RAW = [
+  ['Ana','f','castanho','longo','er'],   ['Bruno','m','preto','curto','ob'],
+  ['Carla','f','loiro','longo','os'],    ['Diego','m','castanho','curto','hmt'],
+  ['Elisa','f','ruivo','longo','sr'],    ['Fábio','m','careca','','omt'],
+  ['Gabi','f','preto','curto','e'],      ['Hugo','m','loiro','curto','bh'],
+  ['Íris','f','grisalho','curto','oet'], ['João','m','ruivo','curto','sr'],
+  ['Kátia','f','castanho','curto','h'],  ['Léo','m','preto','longo','bm'],
+  ['Marta','f','loiro','curto','ort'],   ['Nando','m','grisalho','curto','bo'],
+  ['Olga','f','grisalho','longo','eh'],  ['Pedro','m','castanho','curto','st'],
+  ['Quésia','f','preto','longo','or'],   ['Rafa','m','loiro','longo','e'],
+  ['Sônia','f','ruivo','curto','oe'],    ['Tiago','m','careca','','b'],
+  ['Úrsula','f','castanho','longo','eh'],['Vitor','m','preto','curto','rt'],
+  ['Wanda','f','loiro','curto','hs'],    ['Xande','m','grisalho','longo','mh']
+];
+const CHARS = RAW.map(([name, g, hair, style, f], i) => ({
+  id: i, name, g, hair, style,
+  glasses: f.includes('o'), hat: f.includes('h'), beard: f.includes('b'), must: f.includes('m'),
+  ear: f.includes('e'), freck: f.includes('s'), smile: f.includes('r'), tie: f.includes('t'),
+  skin: SKINS[(i * 5 + 1) % SKINS.length], shirt: SHIRTS[(i * 3) % SHIRTS.length],
+  bg: BGS[i % BGS.length], hatColor: HATS[i % HATS.length]
+}));
+
+const QUESTIONS = [
+  { id:'f',      cat:'Perfil',     text:'É mulher?',               test:c => c.g === 'f' },
+  { id:'smile',  cat:'Perfil',     text:'Está com um sorriso grande?', test:c => c.smile },
+  { id:'h_pr',   cat:'Cabelo',     text:'Tem cabelo preto?',       test:c => c.hair === 'preto' },
+  { id:'h_ca',   cat:'Cabelo',     text:'Tem cabelo castanho?',    test:c => c.hair === 'castanho' },
+  { id:'h_lo',   cat:'Cabelo',     text:'Tem cabelo loiro?',       test:c => c.hair === 'loiro' },
+  { id:'h_ru',   cat:'Cabelo',     text:'Tem cabelo ruivo?',       test:c => c.hair === 'ruivo' },
+  { id:'h_gr',   cat:'Cabelo',     text:'Tem cabelo grisalho?',    test:c => c.hair === 'grisalho' },
+  { id:'bald',   cat:'Cabelo',     text:'É careca?',               test:c => c.hair === 'careca' },
+  { id:'long',   cat:'Cabelo',     text:'Tem cabelo comprido?',    test:c => c.style === 'longo' },
+  { id:'glasses',cat:'Acessórios', text:'Usa óculos?',             test:c => c.glasses },
+  { id:'hat',    cat:'Acessórios', text:'Usa chapéu?',             test:c => c.hat },
+  { id:'ear',    cat:'Acessórios', text:'Usa brinco?',             test:c => c.ear },
+  { id:'tie',    cat:'Acessórios', text:'Usa gravata?',            test:c => c.tie },
+  { id:'beard',  cat:'Rosto',      text:'Tem barba?',              test:c => c.beard },
+  { id:'must',   cat:'Rosto',      text:'Tem bigode?',             test:c => c.must },
+  { id:'freck',  cat:'Rosto',      text:'Tem sardas?',             test:c => c.freck }
+];
+const CATS = ['Perfil', 'Cabelo', 'Acessórios', 'Rosto'];
+
+function shade(hex, a) {
+  const n = parseInt(hex.slice(1), 16), cl = v => Math.max(0, Math.min(255, v));
+  const r = cl((n >> 16) + a), g = cl(((n >> 8) & 255) + a), b = cl((n & 255) + a);
+  return '#' + ((1 << 24) + (r << 16) + (g << 8) + b).toString(16).slice(1);
+}
+
+function avatar(c) {
+  const bald = c.hair === 'careca';
+  const hair = bald ? '#3b2f2a' : HAIR[c.hair];
+  const long = c.style === 'longo' && !bald;
+  const skinD = shade(c.skin, -45);
+  let s = `<svg viewBox="0 0 100 120" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="${c.name}">`;
+  s += `<rect width="100" height="120" fill="${c.bg}"/>`;
+  if (long) s += `<path d="M22 52 C16 12 84 12 78 52 L85 106 L15 106 Z" fill="${hair}"/>`;
+  s += `<path d="M12 120 C12 94 30 86 50 86 C70 86 88 94 88 120 Z" fill="${c.shirt}"/>`;
+  s += `<path d="M38 87 L50 100 L62 87 L58 86 L50 94 L42 86 Z" fill="#fff" opacity=".85"/>`;
+  s += `<rect x="43" y="74" width="14" height="16" rx="5" fill="${shade(c.skin, -16)}"/>`;
+  if (c.tie) s += `<path d="M46 90 L54 90 L52 95 L55 117 L50 112 L45 117 L48 95 Z" fill="#b91c1c"/>`;
+  // orelhas e brincos
+  s += `<circle cx="26" cy="55" r="5.5" fill="${c.skin}"/><circle cx="74" cy="55" r="5.5" fill="${c.skin}"/>`;
+  if (c.ear) s += `<circle cx="25" cy="63" r="2.8" fill="#f5c542" stroke="#b58900" stroke-width=".7"/><circle cx="75" cy="63" r="2.8" fill="#f5c542" stroke="#b58900" stroke-width=".7"/>`;
+  // rosto
+  s += `<ellipse cx="50" cy="52" rx="24" ry="28" fill="${c.skin}"/>`;
+  // cabelo frontal
+  if (!bald) {
+    const v = c.id % 3;
+    if (long) s += `<path d="M24 56 C20 14 80 14 76 56 C73 40 62 32 50 32 C38 32 27 40 24 56 Z" fill="${hair}"/>`;
+    else if (v === 0) s += `<path d="M26 50 C22 18 78 18 74 50 C70 38 60 32 50 32 C40 32 30 38 26 50 Z" fill="${hair}"/>`;
+    else if (v === 1) s += `<path d="M25 52 C14 10 86 10 75 52 C72 36 62 27 50 27 C38 27 28 36 25 52 Z" fill="${hair}"/>`;
+    else s += `<path d="M26 50 C22 18 78 18 74 50 C68 42 56 34 44 32 C36 38 30 42 26 50 Z" fill="${hair}"/>`;
+  } else {
+    s += `<ellipse cx="42" cy="31" rx="7" ry="3" fill="#fff" opacity=".28"/>`;
+  }
+  // sobrancelhas e olhos
+  s += `<path d="M34 45 Q40 42 46 45 M54 45 Q60 42 66 45" stroke="${hair}" stroke-width="2.4" fill="none" stroke-linecap="round"/>`;
+  s += `<circle cx="41" cy="52" r="2.6" fill="#1f2937"/><circle cx="59" cy="52" r="2.6" fill="#1f2937"/>`;
+  s += `<circle cx="41.9" cy="51.1" r=".8" fill="#fff"/><circle cx="59.9" cy="51.1" r=".8" fill="#fff"/>`;
+  if (c.glasses) s += `<g fill="#fff" fill-opacity=".22" stroke="#111827" stroke-width="2"><circle cx="41" cy="52" r="8.5"/><circle cx="59" cy="52" r="8.5"/></g><path d="M49.5 51.5 L50.5 51.5 M32.5 50 L27 48.5 M67.5 50 L73 48.5" stroke="#111827" stroke-width="2" fill="none"/>`;
+  s += `<path d="M50 54 Q46 63 50 64" fill="none" stroke="${skinD}" stroke-width="1.6" stroke-linecap="round"/>`;
+  if (c.freck) s += `<g fill="#a8643a"><circle cx="35" cy="60" r="1.1"/><circle cx="39" cy="62" r="1.1"/><circle cx="43" cy="60" r="1.1"/><circle cx="65" cy="60" r="1.1"/><circle cx="61" cy="62" r="1.1"/><circle cx="57" cy="60" r="1.1"/></g>`;
+  if (c.beard) s += `<path d="M27 58 C27 97 73 97 73 58 C71 81 60 83 50 83 C40 83 29 81 27 58 Z" fill="${hair}"/>`;
+  // boca
+  if (c.smile) s += `<path d="M39 68 Q50 83 61 68 Z" fill="#7f1d1d"/><path d="M41 68.5 Q50 72.5 59 68.5 Q50 71 41 68.5 Z" fill="#fff"/>`;
+  else s += `<path d="M42 70 Q50 75 58 70" stroke="#7f1d1d" stroke-width="2" fill="none" stroke-linecap="round"/>`;
+  if (c.must) s += `<path d="M37 66 Q44 60 50 64.5 Q56 60 63 66 Q56 68 50 66 Q44 68 37 66 Z" fill="${hair}"/>`;
+  // chapéu
+  if (c.hat) {
+    s += `<ellipse cx="50" cy="31" rx="34" ry="7" fill="${shade(c.hatColor, -30)}"/>`;
+    s += `<path d="M29 31 C29 5 71 5 71 31 Z" fill="${c.hatColor}"/>`;
+    s += `<rect x="29" y="24" width="42" height="5" fill="${shade(c.hatColor, -45)}"/>`;
+  }
+  return s + `</svg>`;
+}
+
+/* ============================================================
+   BACKEND (Firebase Realtime Database  |  mock local p/ testes)
+   ============================================================ */
+function mockBackend() {
+  const KEY = 'duelo_mock_db', ch = new BroadcastChannel('duelo_mock');
+  const load = () => { try { return JSON.parse(localStorage.getItem(KEY)) || {}; } catch { return {}; } };
+  const save = d => localStorage.setItem(KEY, JSON.stringify(d));
+  const clean = v => {
+    if (v === null || v === undefined) return undefined;
+    if (typeof v !== 'object') return v;
+    const o = {}; for (const k in v) { const c = clean(v[k]); if (c !== undefined) o[k] = c; }
+    return Object.keys(o).length ? o : undefined;
+  };
+  const keys = p => p.split('/').filter(Boolean);
+  const getP = (d, p) => { let a = d; for (const k of keys(p)) { if (a == null) return null; a = a[k]; } return a === undefined ? null : a; };
+  const setP = (d, p, v) => {
+    const ks = keys(p); let a = d;
+    for (let i = 0; i < ks.length - 1; i++) { if (typeof a[ks[i]] !== 'object' || a[ks[i]] === null) a[ks[i]] = {}; a = a[ks[i]]; }
+    const c = clean(v); if (c === undefined) delete a[ks[ks.length - 1]]; else a[ks[ks.length - 1]] = c;
+  };
+  const listeners = new Set();
+  const fire = () => { const d = load(); listeners.forEach(l => l(d)); };
+  ch.onmessage = fire;
+  const write = fn => { const d = load(); const r = fn(d); save(d); ch.postMessage(1); setTimeout(fire, 0); return r; };
+  return {
+    get: async p => getP(load(), p),
+    set: async (p, v) => write(d => setP(d, p, v)),
+    update: async (p, o) => write(d => { for (const k in o) setP(d, p + '/' + k, o[k]); }),
+    transaction: async (p, fn) => write(d => {
+      const cur = getP(d, p), next = fn(structuredClone(cur));
+      if (next === undefined) return { committed: false, value: cur };
+      setP(d, p, next); return { committed: true, value: getP(d, p) };
+    }),
+    listen: (p, cb) => {
+      let last; const l = d => { const v = getP(d, p), j = JSON.stringify(v); if (j !== last) { last = j; cb(v); } };
+      listeners.add(l); setTimeout(() => l(load()), 0); return () => listeners.delete(l);
+    },
+    onDisconnectSet: async (p, v) => { addEventListener('pagehide', () => write(d => setP(d, p, v))); },
+    onConnected: () => {}
+  };
+}
+
+async function firebaseBackend() {
+  // Tenta várias fontes do SDK; se uma estiver bloqueada na sua rede, passa para a próxima.
+  const sources = [
+    [`https://www.gstatic.com/firebasejs/${FB_VER}/firebase-app.js`, `https://www.gstatic.com/firebasejs/${FB_VER}/firebase-database.js`],
+    [`https://esm.sh/firebase@${FB_VER}/app`, `https://esm.sh/firebase@${FB_VER}/database`],
+    [`https://cdn.skypack.dev/firebase@${FB_VER}/app`, `https://cdn.skypack.dev/firebase@${FB_VER}/database`]
+  ];
+  let appM, dbM, lastErr;
+  for (const [a, d] of sources) {
+    try { [appM, dbM] = await Promise.all([import(a), import(d)]); break; }
+    catch (e) { lastErr = e; console.warn('Fonte do Firebase falhou:', a, e); }
+  }
+  if (!appM) throw lastErr;
+  const app = appM.initializeApp(firebaseConfig), db = dbM.getDatabase(app);
+  const R = p => dbM.ref(db, p);
+  return {
+    get: async p => (await dbM.get(R(p))).val(),
+    set: (p, v) => dbM.set(R(p), v),
+    update: (p, o) => dbM.update(R(p), o),
+    transaction: async (p, fn) => {
+      const r = await dbM.runTransaction(R(p), cur => fn(cur));
+      return { committed: r.committed, value: r.snapshot.val() };
+    },
+    listen: (p, cb, err) => dbM.onValue(R(p), s => cb(s.val()), err),
+    onDisconnectSet: (p, v) => dbM.onDisconnect(R(p)).set(v),
+    onConnected: cb => dbM.onValue(R('.info/connected'), s => { if (s.val() === true) cb(); })
+  };
+}
+
+let DB = null;
+
+/* ============================================================
+   ESTADO LOCAL
+   ============================================================ */
+const $ = s => document.querySelector(s);
+const esc = s => String(s).replace(/[&<>"']/g, c => ({ '&':'&amp;', '<':'&lt;', '>':'&gt;', '"':'&quot;', "'":'&#39;' }[c]));
+const pk = n => 'p' + n;
+const pad = n => String(n).padStart(4, '0');
+const store = {
+  get: k => { try { return sessionStorage.getItem(k); } catch { return null; } },
+  set: (k, v) => { try { sessionStorage.setItem(k, v); } catch {} },
+  del: k => { try { sessionStorage.removeItem(k); } catch {} }
+};
+const uid = store.get('duelo_uid') || ('u' + Math.random().toString(36).slice(2, 10));
+store.set('duelo_uid', uid);
+
+const st = {
+  uid, code: null, me: 0, name: '', room: null,
+  secret: null,                 // personagem secreto: fica SÓ neste aparelho até o fim da partida
+  down: new Set(),              // rostos eliminados (só local)
+  selected: null, guessMode: false, unsub: null, boardSeed: null,
+  answeredN: 0, resolving: false, starting: false, asking: false,
+  autoDoneN: 0, askSig: '', seenFirst: false, lastAnsToastN: 0, lastMyTurn: false, collapsed: false
+};
+if (MOCK) window.__dbg = st; // gancho para testes
+
+const roomPath = () => `${ROOT}/${st.code}`;
+const myKey = () => pk(st.me);
+const oppN = () => (st.me === 1 ? 2 : 1);
+
+function persist() {
+  if (!st.code) return;
+  store.set('duelo_session', JSON.stringify({ code: st.code, me: st.me, name: st.name, secret: st.secret, down: [...st.down] }));
+}
+
+function showScreen(id) {
+  document.querySelectorAll('.screen').forEach(s => s.classList.remove('show'));
+  $('#' + id).classList.add('show');
+  window.scrollTo(0, 0);
+}
+function formAlert(msg) { $('#form-alert').textContent = msg; }
+
+let toastTimer;
+function toast(msg, good = true) {
+  const t = $('#toast'); t.textContent = msg; t.classList.toggle('bad', !good); t.classList.add('show');
+  clearTimeout(toastTimer); toastTimer = setTimeout(() => t.classList.remove('show'), 2600);
+}
+
+function askConfirm(title, text, okLabel = 'Confirmar', extraHTML = '') {
+  return new Promise(res => {
+    $('#cf-title').textContent = title; $('#cf-text').textContent = text;
+    $('#cf-ok').textContent = okLabel; $('#cf-extra').innerHTML = extraHTML;
+    const ov = $('#confirm-overlay'); ov.classList.add('show');
+    const done = v => { ov.classList.remove('show'); $('#cf-ok').onclick = null; $('#cf-cancel').onclick = null; res(v); };
+    $('#cf-ok').onclick = () => done(true); $('#cf-cancel').onclick = () => done(false);
+  });
+}
+
+/* ---------- ordem do tabuleiro (igual nos dois aparelhos, via seed) ---------- */
+function rng(seed) {
+  let a = seed >>> 0;
+  return () => { a |= 0; a = a + 0x6D2B79F5 | 0; let t = Math.imul(a ^ a >>> 15, 1 | a); t = t + Math.imul(t ^ t >>> 7, 61 | t) ^ t; return ((t ^ t >>> 14) >>> 0) / 4294967296; };
+}
+function orderFor(seed) {
+  const r = rng(seed), a = CHARS.map(c => c.id);
+  for (let i = a.length - 1; i > 0; i--) { const j = Math.floor(r() * (i + 1)); [a[i], a[j]] = [a[j], a[i]]; }
+  return a;
+}
+function genCode() {
+  const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789'; let c = '';
+  for (let i = 0; i < 4; i++) c += chars[Math.floor(Math.random() * chars.length)];
+  return c;
+}
+
+/* ============================================================
+   SALAS: criar / entrar / retomar / sair
+   ============================================================ */
+function setBusy(b) { ['#btn-create', '#btn-join'].forEach(s => { $(s).disabled = b; }); }
+
+async function createRoom() {
+  st.name = $('#name-input').value.trim() || 'Jogador 1';
+  setBusy(true); formAlert('Criando sala...');
+  try {
+    let code, tries = 0;
+    do { code = genCode(); tries++; } while ((await DB.get(`${ROOT}/${code}`)) && tries < 8);
+    Object.assign(st, { code, me: 1, secret: null, down: new Set(), selected: null, boardSeed: null, seenFirst: false });
+    await DB.set(roomPath(), {
+      code, status: 'waiting', seed: (Math.random() * 2147483647) | 0, turn: 1, qaCount: 0,
+      createdAt: Date.now(), updatedAt: Date.now(),
+      players: { p1: { name: st.name, uid: st.uid, online: true } }
+    });
+    persist();
+    $('#room-code').textContent = code;
+    formAlert(''); showScreen('screen-waiting');
+    startListening(); announcePresence();
+  } catch (e) {
+    console.error(e); formAlert('Erro de conexão com o Firebase. Confira a config e as regras do banco.');
+  } finally { setBusy(false); }
+}
+
+async function joinRoom() {
+  st.name = $('#name-input').value.trim() || 'Jogador 2';
+  const code = $('#join-code-input').value.trim().toUpperCase();
+  if (!code) { formAlert('Digite um código de sala.'); return; }
+  setBusy(true); formAlert('Procurando sala...');
+  try {
+    const res = await DB.transaction(`${ROOT}/${code}`, cur => {
+      if (cur === null) return null;                              // nada a fazer (ou ainda sem cache)
+      if (cur.status !== 'waiting' || (cur.players && cur.players.p2)) return undefined; // cheia/em andamento
+      cur.players = cur.players || {};
+      cur.players.p2 = { name: st.name, uid: st.uid, online: true };
+      cur.status = 'picking'; cur.updatedAt = Date.now();
+      return cur;
+    });
+    const v = res.value;
+    if (!v) { formAlert('Sala não encontrada. Confira o código.'); return; }
+    if (!(v.players && v.players.p2 && v.players.p2.uid === st.uid)) { formAlert('Sala cheia ou já em andamento.'); return; }
+    Object.assign(st, { code, me: 2, secret: null, down: new Set(), selected: null, boardSeed: null, seenFirst: false });
+    persist(); formAlert('');
+    startListening(); announcePresence();
+  } catch (e) {
+    console.error(e); formAlert('Erro de conexão com o Firebase. Confira a config e as regras do banco.');
+  } finally { setBusy(false); }
+}
+
+async function tryResume() {
+  let s = null;
+  try { s = JSON.parse(store.get('duelo_session')); } catch {}
+  if (!s || !s.code) return;
+  try {
+    const r = await DB.get(`${ROOT}/${s.code}`);
+    const mine = r && r.players && r.players[pk(s.me)];
+    if (!r || r.status === 'finished' || !mine || mine.uid !== st.uid) { store.del('duelo_session'); return; }
+    Object.assign(st, { code: s.code, me: s.me, name: s.name, secret: (typeof s.secret === 'number' ? s.secret : null), down: new Set(s.down || []) });
+    startListening(); announcePresence();
+  } catch (e) { console.error(e); }
+}
+
+function startListening() {
+  stopListening();
+  st.unsub = DB.listen(roomPath(), onRoom, err => { console.error(err); toast('Erro de conexão', false); });
+  DB.onConnected(() => { if (st.code) announcePresence(); });
+}
+function stopListening() { if (st.unsub) { st.unsub(); st.unsub = null; } }
+
+function announcePresence() {
+  const p = `${roomPath()}/players/${myKey()}/online`;
+  Promise.resolve(DB.onDisconnectSet(p, false)).catch(() => {});
+  Promise.resolve(DB.set(p, true)).catch(() => {});
+}
+
+async function leaveRoom() {
+  const r = st.room;
+  if (r && (r.status === 'picking' || r.status === 'playing')) {
+    const ok = await askConfirm('Sair da partida?', 'Isso conta como desistência.', 'Sair');
+    if (!ok) return;
+    try { await DB.update(roomPath(), { status: 'finished', winner: oppN(), reason: 'left', updatedAt: Date.now() }); } catch {}
+  } else if (r && r.status === 'waiting') {
+    try { await DB.set(roomPath(), null); } catch {}
+  }
+  hardReset();
+}
+function hardReset() { stopListening(); store.del('duelo_session'); location.href = location.pathname + (MOCK ? '?mock' : ''); }
+
+/* ============================================================
+   REAÇÃO A MUDANÇAS NA SALA
+   ============================================================ */
+function onRoom(r) {
+  if (r === null) {
+    if (st.room) { toast('A sala foi encerrada.', false); setTimeout(hardReset, 1200); }
+    return;
+  }
+  st.room = r;
+  if (!st.seenFirst) {
+    st.seenFirst = true;
+    st.lastAnsToastN = r.qa ? r.qa.n : 0;
+    st.lastMyTurn = (r.status === 'playing' && r.turn === st.me);
+  }
+  if (r.status === 'waiting') { $('#room-code').textContent = r.code; showScreen('screen-waiting'); return; }
+
+  if (!$('#screen-game').classList.contains('show')) showScreen('screen-game');
+  buildBoard(r.seed);
+
+  const me = st.me;
+  const ready = r.ready || {};
+
+  // início: os dois escolheram
+  if (r.status === 'picking' && ready.p1 && ready.p2 && !st.starting) {
+    st.starting = true;
+    DB.transaction(roomPath(), cur => {
+      if (cur === null) return null;
+      if (cur.status === 'picking' && cur.ready && cur.ready.p1 && cur.ready.p2) { cur.status = 'playing'; cur.turn = 1; cur.updatedAt = Date.now(); }
+      return cur;
+    }).catch(console.error).finally(() => { st.starting = false; });
+  }
+
+  if (r.status === 'playing') {
+    const qPend = r.qa && typeof r.qa.answer !== 'boolean';
+    if (qPend && r.qa.asker !== me) scheduleAnswer(r.qa);
+    const gPend = r.guess && typeof r.guess.correct !== 'boolean';
+    if (gPend && r.guess.by !== me) resolveGuess(r.guess);
+  }
+
+  if (r.status === 'finished' && typeof st.secret === 'number' && !(r.reveal && typeof r.reveal[myKey()] === 'number')) {
+    DB.update(roomPath(), { ['reveal/' + myKey()]: st.secret }).catch(console.error);
+  }
+  render();
+}
+
+/* ---------- defensor responde automaticamente (só ele sabe o segredo) ---------- */
+function scheduleAnswer(qa) {
+  if (st.answeredN === qa.n) return;
+  st.answeredN = qa.n;
+  setTimeout(async () => {
+    const q = QUESTIONS.find(x => x.id === qa.qid);
+    if (!q || typeof st.secret !== 'number') { toast('Não consegui recuperar seu personagem.', false); return; }
+    const ans = !!q.test(CHARS[st.secret]);
+    try {
+      await DB.update(roomPath(), {
+        'qa/answer': ans,
+        turn: st.me,
+        ['history/h' + pad(qa.n)]: { asker: qa.asker, qid: qa.qid, text: qa.text, answer: ans },
+        updatedAt: Date.now()
+      });
+    } catch (e) { console.error(e); st.answeredN = 0; }
+  }, 900);
+}
+
+/* ---------- defensor confere o chute ---------- */
+async function resolveGuess(g) {
+  if (st.resolving || typeof st.secret !== 'number') return;
+  st.resolving = true;
+  const correct = g.charId === st.secret;
+  try {
+    await DB.update(roomPath(), {
+      'guess/correct': correct, status: 'finished',
+      winner: correct ? g.by : st.me, reason: correct ? 'guess' : 'wrongGuess',
+      ['reveal/' + myKey()]: st.secret, updatedAt: Date.now()
+    });
+  } catch (e) { console.error(e); st.resolving = false; }
+}
+
+/* ============================================================
+   AÇÕES DO JOGADOR
+   ============================================================ */
+function buildBoard(seed) {
+  if (st.boardSeed === seed) return;
+  st.boardSeed = seed;
+  const b = $('#board'); b.innerHTML = '';
+  orderFor(seed).forEach(id => {
+    const c = CHARS[id], d = document.createElement('button');
+    d.type = 'button'; d.className = 'card'; d.dataset.id = id;
+    d.innerHTML = `<div class="av">${avatar(c)}</div><div class="cname">${esc(c.name)}</div>`;
+    b.appendChild(d);
+  });
+}
+
+function onCardClick(id) {
+  const r = st.room; if (!r) return;
+  if (r.status === 'picking') {
+    if (r.ready && r.ready[myKey()]) return;
+    st.selected = id; render(); return;
+  }
+  if (r.status === 'playing') {
+    if (st.guessMode) { confirmGuess(id); return; }
+    if (st.down.has(id)) st.down.delete(id); else st.down.add(id);
+    persist(); updateBoard();
+  }
+}
+
+async function confirmPick() {
+  if (typeof st.selected !== 'number') return;
+  st.secret = st.selected; persist();
+  $('#btn-confirm-pick').disabled = true;
+  try { await DB.update(roomPath(), { ['ready/' + myKey()]: true, updatedAt: Date.now() }); }
+  catch (e) { console.error(e); st.secret = null; toast('Erro ao confirmar. Tente de novo.', false); }
+}
+
+function randomPick() { st.selected = Math.floor(Math.random() * CHARS.length); render(); }
+
+async function ask(q) {
+  const r = st.room;
+  if (st.asking || !r || r.status !== 'playing' || r.turn !== st.me) return;
+  st.asking = true;
+  try {
+    const n = (r.qaCount || 0) + 1;
+    await DB.update(roomPath(), { qa: { n, asker: st.me, qid: q.id, text: q.text }, qaCount: n, updatedAt: Date.now() });
+  } catch (e) { console.error(e); toast('Erro ao enviar a pergunta.', false); }
+  finally { st.asking = false; }
+}
+
+async function confirmGuess(id) {
+  const c = CHARS[id];
+  const ok = await askConfirm(`Chutar ${c.name}?`, 'Se errar, você perde na hora.', 'Chutar!', `<div class="confirm-av">${avatar(c)}</div>`);
+  if (!ok) return;
+  st.guessMode = false;
+  try { await DB.update(roomPath(), { guess: { by: st.me, charId: id }, updatedAt: Date.now() }); }
+  catch (e) { console.error(e); toast('Erro ao enviar o chute.', false); }
+  render();
+}
+
+function autoEliminate() {
+  const r = st.room; if (!r || !r.qa || typeof r.qa.answer !== 'boolean') return;
+  const q = QUESTIONS.find(x => x.id === r.qa.qid); if (!q) return;
+  CHARS.forEach(c => { if (!!q.test(c) !== r.qa.answer) st.down.add(c.id); });
+  st.autoDoneN = r.qa.n; persist(); render();
+}
+
+/* ============================================================
+   RENDER
+   ============================================================ */
+function updateBoard() {
+  const r = st.room; if (!r) return;
+  document.querySelectorAll('#board .card').forEach(d => {
+    const id = +d.dataset.id;
+    d.classList.toggle('down', st.down.has(id));
+    d.classList.toggle('sel', r.status === 'picking' && st.selected === id && !(r.ready && r.ready[myKey()]));
+    d.classList.toggle('mine', typeof st.secret === 'number' && st.secret === id && r.status !== 'waiting');
+  });
+}
+
+function render() {
+  const r = st.room; if (!r) return;
+  const me = st.me, opp = oppN();
+  const myP = (r.players && r.players[pk(me)]) || {}, oppP = (r.players && r.players[pk(opp)]) || {};
+  const oppName = oppP.name || 'Oponente';
+  $('#me-name').textContent = myP.name || 'Você';
+  $('#opp-name').textContent = oppName;
+
+  const status = r.status;
+  const qPend = !!(r.qa && typeof r.qa.answer !== 'boolean');
+  const gPend = !!(r.guess && typeof r.guess.correct !== 'boolean');
+  const myTurn = status === 'playing' && r.turn === me && !qPend && !gPend;
+  if (!myTurn) st.guessMode = false;
+  document.body.classList.toggle('guessing', st.guessMode);
+
+  // indicador de turno
+  let t = '', cls = 'theirs';
+  if (status === 'picking') { t = (r.ready && r.ready[myKey()]) ? '⏳ Aguardando o oponente escolher…' : '🔒 Escolha seu personagem secreto'; cls = (r.ready && r.ready[myKey()]) ? 'theirs' : 'mine'; }
+  else if (status === 'playing') {
+    if (gPend) t = r.guess.by === me ? '🎯 Chute enviado… verificando' : '🎯 O oponente chutou! Verificando…';
+    else if (qPend) t = r.qa.asker === me ? '⏳ Aguardando a resposta…' : '💬 Respondendo à pergunta…';
+    else if (myTurn) { t = '🎯 Sua vez: pergunte ou chute'; cls = 'mine'; }
+    else t = `Vez de ${oppName}…`;
+  } else { t = '🏁 Fim de jogo'; cls = 'end'; }
+  const ti = $('#turn-indicator'); ti.textContent = t; ti.className = cls;
+
+  $('#offline-banner').classList.toggle('hidden', !(status !== 'finished' && oppP.online === false));
+  $('#opp-sub').innerHTML = oppP.online === false ? 'offline' : '&nbsp;';
+
+  // meu personagem secreto
+  const ms = $('#my-secret');
+  if (typeof st.secret === 'number' && (status === 'playing' || (status === 'picking' && r.ready && r.ready[myKey()]))) {
+    ms.classList.remove('hidden');
+    $('#my-secret-av').innerHTML = avatar(CHARS[st.secret]);
+    $('#my-secret-name').textContent = CHARS[st.secret].name;
+  } else ms.classList.add('hidden');
+
+  // última pergunta / resposta
+  const qb = $('#qa-banner');
+  if (status !== 'picking' && r.qa) {
+    const who = r.qa.asker === me ? 'Você' : oppName;
+    qb.classList.remove('hidden'); qb.innerHTML = '';
+    const left = document.createElement('div');
+    if (typeof r.qa.answer === 'boolean') {
+      left.innerHTML = `${esc(who)}: “${esc(r.qa.text)}” → <span class="ans ${r.qa.answer ? 'yes' : 'no'}">${r.qa.answer ? 'SIM' : 'NÃO'}</span>`;
+    } else {
+      left.innerHTML = `${esc(who)}: “${esc(r.qa.text)}” → <span style="color:#a0aec0">aguardando…</span>`;
+    }
+    qb.appendChild(left);
+    if (typeof r.qa.answer === 'boolean' && r.qa.asker === me && st.autoDoneN !== r.qa.n && status === 'playing') {
+      const b = document.createElement('button');
+      b.className = 'btn btn-primary btn-small'; b.style.width = 'auto'; b.textContent = '✂️ Eliminar automático';
+      b.onclick = autoEliminate; qb.appendChild(b);
+    }
+  } else qb.classList.add('hidden');
+
+  // toasts
+  if (r.qa && typeof r.qa.answer === 'boolean' && r.qa.asker === me && r.qa.n > st.lastAnsToastN) {
+    st.lastAnsToastN = r.qa.n; toast(`Resposta: ${r.qa.answer ? 'SIM ✅' : 'NÃO ❌'}`, r.qa.answer);
+  }
+  if (myTurn && !st.lastMyTurn) { toast('🎯 Sua vez!'); try { navigator.vibrate && navigator.vibrate(80); } catch {} }
+  st.lastMyTurn = myTurn;
+
+  // histórico
+  const hist = Object.keys(r.history || {}).sort();
+  $('#hist-count').textContent = hist.length;
+  const hl = $('#hist-list'); hl.innerHTML = '';
+  hist.slice().reverse().forEach(k => {
+    const h = r.history[k], li = document.createElement('li');
+    li.innerHTML = `<b>${h.asker === me ? 'Você' : esc(oppName)}</b>: ${esc(h.text)} <span class="${h.answer ? 'yes' : 'no'}">${h.answer ? 'SIM' : 'NÃO'}</span>`;
+    hl.appendChild(li);
+  });
+
+  // painéis
+  ['pick', 'ask', 'guess', 'info'].forEach(n => $('#panel-' + n).classList.add('hidden'));
+  const leave = $('#leave-btn'); leave.classList.toggle('hidden', status === 'finished');
+  if (status === 'picking') {
+    const iReady = !!(r.ready && r.ready[myKey()]);
+    if (iReady) { $('#panel-info').classList.remove('hidden'); $('#info-text').textContent = 'Personagem escolhido! Esperando o outro jogador…'; }
+    else {
+      $('#panel-pick').classList.remove('hidden');
+      $('#btn-confirm-pick').disabled = typeof st.selected !== 'number';
+      $('#btn-confirm-pick').textContent = typeof st.selected === 'number' ? `Confirmar ${CHARS[st.selected].name}` : 'Confirmar';
+    }
+  } else if (status === 'playing') {
+    if (myTurn && st.guessMode) $('#panel-guess').classList.remove('hidden');
+    else if (myTurn) { $('#panel-ask').classList.remove('hidden'); renderQuestions(r); }
+    else {
+      $('#panel-info').classList.remove('hidden');
+      $('#info-text').textContent = qPend && r.qa.asker !== me ? 'Respondendo automaticamente…'
+        : gPend ? 'Verificando o chute…'
+        : 'Enquanto espera, toque nos rostos para eliminar os que não servem.';
+    }
+  }
+  $('#panel').classList.toggle('hidden', status === 'finished');
+  $('#panel').classList.toggle('collapsed', st.collapsed);
+  $('#ask-toggle').textContent = st.collapsed ? '▴' : '▾';
+
+  updateBoard();
+  if (status === 'finished') showEnd(r);
+}
+
+function renderQuestions(r) {
+  const asked = new Set(Object.values(r.history || {}).filter(h => h.asker === st.me).map(h => h.qid));
+  const sig = [...asked].sort().join(',');
+  if (sig === st.askSig && $('#questions').children.length) return;
+  st.askSig = sig;
+  const box = $('#questions'); box.innerHTML = '';
+  CATS.forEach(cat => {
+    const g = document.createElement('div'); g.className = 'qgroup';
+    g.innerHTML = `<h4>${cat}</h4>`;
+    const chips = document.createElement('div'); chips.className = 'chips';
+    QUESTIONS.filter(q => q.cat === cat).forEach(q => {
+      const b = document.createElement('button'); b.type = 'button'; b.className = 'chip';
+      b.textContent = q.text; b.disabled = asked.has(q.id);
+      b.onclick = () => ask(q); chips.appendChild(b);
+    });
+    g.appendChild(chips); box.appendChild(g);
+  });
+}
+
+function showEnd(r) {
+  const me = st.me, opp = oppN();
+  const oppName = (r.players && r.players[pk(opp)] && r.players[pk(opp)].name) || 'Oponente';
+  const won = r.winner === me;
+  const title = $('#end-title'); title.textContent = won ? '🏆 Você venceu!' : '😵 Você perdeu';
+  title.className = won ? '' : 'lose';
+  let reason = '';
+  if (r.reason === 'guess') reason = won ? 'Você descobriu o personagem do oponente!' : `${oppName} descobriu o seu personagem.`;
+  else if (r.reason === 'wrongGuess') reason = won ? `${oppName} chutou errado!` : 'Seu chute estava errado.';
+  else if (r.reason === 'left') reason = won ? `${oppName} saiu da partida.` : 'Você saiu da partida.';
+  $('#end-reason').textContent = reason;
+  const rev = r.reveal || {};
+  const fig = (n, label) => {
+    const v = rev[pk(n)];
+    const name = (r.players && r.players[pk(n)] && r.players[pk(n)].name) || label;
+    return `<figure><div class="rav">${typeof v === 'number' ? avatar(CHARS[v]) : '…'}</div><figcaption><b>${typeof v === 'number' ? esc(CHARS[v].name) : '?'}</b>${n === me ? 'seu personagem' : 'de ' + esc(name)}</figcaption></figure>`;
+  };
+  $('#end-reveal').innerHTML = fig(me, 'Você') + fig(opp, 'Oponente');
+  $('#end-overlay').classList.add('show');
+}
+
+/* ============================================================
+   INICIALIZAÇÃO
+   ============================================================ */
+$('#btn-create').onclick = createRoom;
+$('#btn-join').onclick = joinRoom;
+$('#btn-cancel').onclick = leaveRoom;
+$('#leave-btn').onclick = leaveRoom;
+$('#btn-again').onclick = hardReset;
+$('#btn-confirm-pick').onclick = confirmPick;
+$('#btn-random').onclick = randomPick;
+$('#btn-guess').onclick = () => { st.guessMode = true; render(); };
+$('#btn-guess-cancel').onclick = () => { st.guessMode = false; render(); };
+$('#ask-head').onclick = () => { st.collapsed = !st.collapsed; render(); };
+$('#board').addEventListener('click', e => { const c = e.target.closest('.card'); if (c) onCardClick(+c.dataset.id); });
+$('#room-code').onclick = () => {
+  if (!st.code || !navigator.clipboard) return;
+  navigator.clipboard.writeText(st.code).then(() => toast('Código copiado!')).catch(() => {});
+};
+$('#join-code-input').addEventListener('keydown', e => { if (e.key === 'Enter') joinRoom(); });
+
+(async () => {
+  try {
+    DB = MOCK ? mockBackend() : await firebaseBackend();
+  } catch (e) {
+    console.error(e);
+    formAlert('Não consegui carregar o Firebase (rede, DNS ou bloqueador de anúncios?). Abra por https (GitHub Pages), desative bloqueadores e recarregue.');
+    setBusy(true); return;
+  }
+  await tryResume();
+})();
+</script>
+</body>
+</html>
