@@ -1,0 +1,769 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover, user-scalable=no">
+<title>Arena Relâmpago - Remoto</title>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&family=Orbitron:wght@500;700;900&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg-dark: #0a0f1c;
+    --p1-color: #00f0ff;
+    --p1-glow: rgba(0, 240, 255, 0.4);
+    --p2-color: #ff003c;
+    --p2-glow: rgba(255, 0, 60, 0.4);
+    --glass-bg: rgba(16, 25, 43, 0.75);
+    --good: #00ff88;
+    --warn: #ffcc00;
+  }
+  * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+  html, body { margin:0; padding:0; }
+  body {
+    background: radial-gradient(circle at 50% 0%, #1a2342, var(--bg-dark) 60%);
+    background-attachment: fixed; color: white; font-family: 'Inter', sans-serif;
+    min-height: 100dvh; overflow-x: hidden;
+  }
+  h1,h2,h3,.mono { font-family: 'Orbitron', sans-serif; text-transform: uppercase; margin:0; }
+  button { font-family: inherit; }
+  .screen { display:none; min-height:100dvh; flex-direction:column; }
+  .screen.show { display:flex; }
+  .hidden { display:none !important; }
+  .container { width:100%; max-width: 480px; margin:0 auto; padding: 20px 16px; }
+  .glass-panel {
+    background: var(--glass-bg); backdrop-filter: blur(16px); border: 1px solid rgba(255,255,255,0.08);
+    padding: 1.6rem; border-radius: 18px; box-shadow: 0 10px 40px rgba(0,0,0,0.6), inset 0 0 20px rgba(255,255,255,0.02);
+  }
+  input {
+    width: 100%; padding: 14px; border-radius: 10px; border: 1px solid rgba(255,255,255,0.2);
+    background: rgba(0,0,0,0.3); color: white; font-family: 'Orbitron', sans-serif; font-size: 1.05rem; outline: none; margin: 8px 0 18px;
+  }
+  input:focus { border-color: var(--p1-color); box-shadow: 0 0 10px var(--p1-glow); }
+  label { font-size: 0.8rem; color:#a0aec0; letter-spacing: 0.5px; text-transform: uppercase; }
+  .btn {
+    width: 100%; padding: 16px; border: none; border-radius: 12px; font-family: 'Orbitron', sans-serif; font-weight: 900;
+    font-size: 1.05rem; text-transform: uppercase; letter-spacing: 0.5px; cursor: pointer; min-height: 52px;
+    transition: transform 0.15s ease, box-shadow 0.15s ease;
+  }
+  .btn:active { transform: scale(0.97); }
+  .btn-primary { background: linear-gradient(90deg, var(--p1-color), #00a2ff); color:#000; box-shadow: 0 6px 20px var(--p1-glow); }
+  .btn-secondary { background: rgba(255,255,255,0.06); color:white; border: 1px solid rgba(255,255,255,0.2); margin-top: 12px; }
+  .btn-danger { background: linear-gradient(90deg, var(--p2-color), #a30022); color:white; box-shadow: 0 6px 20px var(--p2-glow); }
+  .btn-small { min-height: 42px; padding: 10px 14px; font-size: 0.8rem; }
+  .btn[disabled] { opacity:0.4; cursor:not-allowed; }
+  .divider { text-align:center; color:#556; font-size:0.75rem; letter-spacing:2px; margin: 22px 0; text-transform:uppercase; }
+
+  #screen-setup .container { justify-content:center; flex:1; display:flex; flex-direction:column; }
+  .logo { text-align:center; margin-bottom: 30px; }
+  .logo h1 { font-size: 2.2rem; color: var(--p1-color); text-shadow: 0 0 15px var(--p1-glow); }
+  .logo p { color:#a0aec0; margin-top:6px; font-size:0.9rem; }
+  .form-alert { color: var(--warn); font-size: 0.82rem; text-align:center; min-height: 18px; margin-top: 8px; }
+  .rules { color:#7c8aa5; font-size:0.74rem; line-height:1.5; text-align:center; margin-top: 16px; }
+
+  #screen-waiting .container { flex:1; display:flex; flex-direction:column; justify-content:center; align-items:center; text-align:center; }
+  .room-code {
+    font-family: 'Orbitron', sans-serif; font-size: 3rem; letter-spacing: 8px; padding: 20px 10px 20px 18px;
+    border: 2px dashed var(--p1-color); border-radius: 14px; margin: 20px 0; color: var(--p1-color);
+    text-shadow: 0 0 15px var(--p1-glow); cursor: pointer;
+  }
+  .spinner { width: 34px; height: 34px; border: 3px solid rgba(255,255,255,0.15); border-top-color: var(--p1-color); border-radius: 50%; animation: spin 0.8s linear infinite; margin: 18px auto; }
+  @keyframes spin { to { transform: rotate(360deg); } }
+
+  /* --- JOGO --- */
+  #topbar {
+    position: sticky; top:0; z-index: 30; display:flex; align-items:center; gap:8px; padding: 10px 14px;
+    background: rgba(10,15,28,0.88); backdrop-filter: blur(10px); border-bottom: 1px solid rgba(255,255,255,0.08);
+  }
+  .player-tag { flex:1; min-width:0; }
+  .player-tag .pname { font-family:'Orbitron',sans-serif; font-size: 0.85rem; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+  .player-tag.me .pname { color: var(--p1-color); }
+  .player-tag.opp { text-align:right; }
+  .player-tag.opp .pname { color: var(--p2-color); }
+  .pips { font-size: 1.1rem; letter-spacing: 4px; margin-top: 2px; }
+  .player-tag.me .pips { color: var(--p1-color); }
+  .player-tag.opp .pips { color: var(--p2-color); }
+  .vs { font-family:'Orbitron',sans-serif; font-size:0.7rem; color:#556; text-align:center; }
+  .vs b { display:block; font-size:1.3rem; color:white; }
+  #roundbar { text-align:center; font-family:'Orbitron',sans-serif; font-size: 0.78rem; letter-spacing: 1px; padding: 8px 10px; background: rgba(255,255,255,0.04); color:#a0aec0; text-transform:uppercase; }
+  #offline-banner { background: rgba(255,204,0,0.12); color: var(--warn); text-align:center; font-size:0.78rem; padding: 8px 10px; }
+  #offline-banner button { margin-left:8px; padding: 6px 10px; border-radius:8px; border:1px solid var(--warn); background:transparent; color:var(--warn); cursor:pointer; font-size:0.75rem; }
+
+  #stage { flex:1; display:flex; align-items:center; justify-content:center; padding: 14px; min-height: 60vh; user-select:none; -webkit-user-select:none; touch-action: manipulation; }
+  .stage-inner { width:100%; max-width: 560px; text-align:center; }
+  .gcard .gicon { font-size: 3.4rem; }
+  .gcard h2 { font-size: 1.5rem; margin: 6px 0 8px; color: var(--p1-color); }
+  .gcard p { color:#a0aec0; font-size:0.9rem; line-height:1.45; margin: 0 auto; max-width: 340px; }
+  .cd-num { font-family:'Orbitron',sans-serif; font-weight:900; font-size: 6.5rem; line-height:1; margin: 18px 0 6px; color: var(--warn); text-shadow: 0 0 30px rgba(255,204,0,0.5); }
+  .cd-label { font-family:'Orbitron',sans-serif; font-size:0.8rem; letter-spacing:2px; color:#a0aec0; text-transform:uppercase; }
+
+  .rx { width:100%; height: 56vh; min-height: 300px; border-radius: 18px; display:flex; flex-direction:column; align-items:center; justify-content:center; text-align:center; cursor:pointer; transition: background .08s; }
+  .rx.wait { background: #7f1d1d; }
+  .rx.go { background: #16a34a; box-shadow: 0 0 40px rgba(22,163,74,0.6); }
+  .rx.foul { background: #c2410c; }
+  .rx .big { font-family:'Orbitron',sans-serif; font-weight:900; font-size: 2.2rem; }
+  .rx .sub { margin-top: 10px; font-size: 0.85rem; opacity: .85; }
+  .tap-time { font-family:'Orbitron',sans-serif; color: var(--warn); font-size: 1.1rem; margin-bottom: 14px; }
+  .tap-count { font-family:'Orbitron',sans-serif; font-weight:900; font-size: 3.6rem; margin-bottom: 18px; color: var(--p1-color); }
+  #tapbtn {
+    width: min(68vw, 270px); aspect-ratio: 1; border-radius: 50%; border: none; cursor:pointer;
+    font-family:'Orbitron',sans-serif; font-weight:900; font-size: 1.8rem; color:#000;
+    background: radial-gradient(circle at 35% 30%, #7df3ff, var(--p1-color) 55%, #0088aa);
+    box-shadow: 0 0 40px var(--p1-glow), inset 0 -8px 20px rgba(0,0,0,.25);
+    transition: transform .05s;
+  }
+  #tapbtn:active { transform: scale(0.93); }
+  #tapbtn[disabled] { filter: grayscale(.8); opacity:.6; }
+  .field-head { display:flex; justify-content:space-between; font-family:'Orbitron',sans-serif; font-size:0.8rem; color:#a0aec0; margin-bottom: 8px; }
+  #field { position:relative; width:100%; height: min(60vh, 500px); border-radius: 18px; background: rgba(255,255,255,0.04); border: 1px dashed rgba(255,255,255,0.18); overflow:hidden; }
+  #field.miss { border-color: var(--p2-color); box-shadow: 0 0 20px var(--p2-glow); }
+  .tgt {
+    position:absolute; width: 66px; height: 66px; border-radius: 50%; transform: translate(-50%,-50%); border:none; cursor:pointer; padding:0;
+    background: radial-gradient(circle, #fff 0 16%, var(--p2-color) 18% 40%, #fff 42% 58%, var(--p2-color) 60% 100%);
+    box-shadow: 0 0 20px var(--p2-glow);
+  }
+  .ogrid { display:grid; grid-template-columns: repeat(5, 1fr); gap: 6px; max-width: 340px; margin: 6px auto 0; }
+  .ocell { aspect-ratio: 1; font-size: 1.7rem; background: rgba(255,255,255,0.07); border: 1px solid rgba(255,255,255,0.15); border-radius: 10px; color:#fff; cursor:pointer; padding:0; line-height:1; }
+  .ocell.bad { background: rgba(255,0,60,0.4); border-color: var(--p2-color); }
+  .penalty { color: var(--p2-color); font-family:'Orbitron',sans-serif; font-size:0.8rem; min-height: 1.2em; margin-top: 8px; }
+
+  .result-card { background: var(--glass-bg); border: 1px solid rgba(255,255,255,0.1); border-radius: 18px; padding: 18px; }
+  .rc-game { font-family:'Orbitron',sans-serif; font-size: 0.85rem; color:#a0aec0; letter-spacing:1px; text-transform:uppercase; margin-bottom: 12px; }
+  .rc-row { display:flex; justify-content:space-between; align-items:center; padding: 12px 6px; border-bottom: 1px solid rgba(255,255,255,0.08); font-size: 0.95rem; }
+  .rc-row b { font-family:'Orbitron',sans-serif; font-size: 1.15rem; }
+  .rc-row.win b { color: var(--good); text-shadow: 0 0 12px rgba(0,255,136,.5); }
+  .rc-row.lose b { color: var(--p2-color); }
+  .rc-verdict { font-family:'Orbitron',sans-serif; font-weight:900; font-size: 1.15rem; margin-top: 16px; text-transform:uppercase; }
+  .rc-verdict.win { color: var(--good); } .rc-verdict.lose { color: var(--p2-color); } .rc-verdict.tie { color: var(--warn); }
+  .rc-next { color:#7c8aa5; font-size: 0.75rem; margin-top: 10px; }
+
+  #foot { padding: 0 14px 14px; }
+  #leave-btn { margin-top: 0; }
+
+  #toast {
+    position: fixed; top:-100px; left:50%; transform:translateX(-50%); background: rgba(10,15,28,0.95); border:2px solid var(--good);
+    padding: 12px 26px; border-radius: 30px; z-index: 3000; font-weight:bold; font-family:'Orbitron',sans-serif; font-size:0.8rem; text-align:center;
+    box-shadow: 0 10px 30px rgba(0,0,0,0.8), 0 0 20px rgba(0,255,136,0.4); transition: top 0.4s cubic-bezier(.68,-0.55,.265,1.55); max-width: 90vw;
+  }
+  #toast.show { top: calc(env(safe-area-inset-top) + 10px); }
+  #toast.bad { border-color: var(--warn); }
+
+  .overlay { position: fixed; inset:0; background: rgba(5,8,16,0.92); backdrop-filter: blur(6px); display:none; align-items:center; justify-content:center; z-index: 2000; padding: 20px; }
+  .overlay.show { display:flex; }
+  .modal { text-align:center; width:100%; max-width: 380px; }
+  .modal h1 { font-size: 1.6rem; color: var(--good); text-shadow: 0 0 15px rgba(0,255,136,0.5); margin-bottom: 10px; }
+  .modal h1.lose { color: var(--p2-color); text-shadow: 0 0 15px var(--p2-glow); }
+  .modal h1.tie { color: var(--warn); text-shadow: none; }
+  .modal h2 { font-size: 1.15rem; color: var(--warn); margin-bottom: 10px; }
+  .modal p { color:#a0aec0; font-size:0.9rem; line-height:1.4; margin: 6px 0 14px; }
+  .final-score { font-family:'Orbitron',sans-serif; font-weight:900; font-size: 3rem; margin: 10px 0; }
+  .final-score .a { color: var(--p1-color); } .final-score .b { color: var(--p2-color); }
+
+  @media (min-width: 700px) { .container { padding: 40px 16px; } }
+</style>
+</head>
+<body>
+
+<div id="toast"></div>
+
+<section id="screen-setup" class="screen show">
+  <div class="container">
+    <div class="logo">
+      <h1>Arena Relâmpago</h1>
+      <p>Duelo de reflexos em tempo real · cada um no seu aparelho</p>
+    </div>
+    <div class="glass-panel">
+      <label for="name-input">Seu nome</label>
+      <input id="name-input" type="text" maxlength="16" placeholder="Ex: Ana">
+      <button class="btn btn-primary" id="btn-create">Criar Sala</button>
+      <div class="divider">ou</div>
+      <label for="join-code-input">Código da sala</label>
+      <input id="join-code-input" type="text" maxlength="4" placeholder="EX: A1B2" style="text-transform:uppercase; letter-spacing:4px; text-align:center;">
+      <button class="btn btn-secondary" id="btn-join">Entrar em Sala</button>
+      <div class="form-alert" id="form-alert"></div>
+      <div class="rules">Melhor de 5: <b>quem vencer 3 rodadas primeiro leva</b>. Cada rodada sorteia um minijogo: reflexo, metralhadora de toques, caça aos alvos ou ache o diferente. Quem fizer melhor marca o ponto.</div>
+    </div>
+  </div>
+</section>
+
+<section id="screen-waiting" class="screen">
+  <div class="container">
+    <h2 style="text-align:center; color:#a0aec0; font-size:1rem; letter-spacing:1px;">Envie este código para seu adversário</h2>
+    <div class="room-code" id="room-code" title="Toque para copiar">----</div>
+    <p style="color:#556; font-size:0.75rem; text-align:center;">Toque no código para copiar</p>
+    <div class="spinner"></div>
+    <p style="text-align:center; color:#a0aec0;">Aguardando o oponente entrar...</p>
+    <button class="btn btn-danger" style="margin-top:30px;" id="btn-cancel">Cancelar</button>
+  </div>
+</section>
+
+<section id="screen-game" class="screen">
+  <div id="topbar">
+    <div class="player-tag me"><div class="pname" id="me-name">Você</div><div class="pips" id="me-pips">○○○</div></div>
+    <div class="vs">VS<b id="vs-score">0 × 0</b></div>
+    <div class="player-tag opp"><div class="pname" id="opp-name">Oponente</div><div class="pips" id="opp-pips">○○○</div></div>
+  </div>
+  <div id="roundbar">Preparando…</div>
+  <div id="offline-banner" class="hidden">⚠️ Oponente desconectado <button id="btn-claim">Encerrar e vencer</button></div>
+  <div id="stage"><div class="stage-inner" id="stage-inner"></div></div>
+  <div id="foot"><button class="btn btn-secondary btn-small" id="leave-btn">Sair da sala</button></div>
+</section>
+
+<div class="overlay" id="confirm-overlay">
+  <div class="glass-panel modal">
+    <h2 id="cf-title">Confirmar?</h2>
+    <p id="cf-text"></p>
+    <button class="btn btn-primary" id="cf-ok">Confirmar</button>
+    <button class="btn btn-secondary" id="cf-cancel">Cancelar</button>
+  </div>
+</div>
+
+<div class="overlay" id="end-overlay">
+  <div class="glass-panel modal">
+    <h1 id="end-title">Fim de jogo</h1>
+    <div class="final-score"><span class="a" id="end-a">0</span> × <span class="b" id="end-b">0</span></div>
+    <p id="end-reason"></p>
+    <button class="btn btn-primary" id="btn-rematch">⚔️ Revanche</button>
+    <button class="btn btn-secondary" id="btn-again">Sair</button>
+  </div>
+</div>
+
+<script type="module">
+/* ============================================================
+   CONFIG DO FIREBASE (mesmo projeto do Memory Wars)
+   Grava em  rooms/arena_<CODIGO>  -> já coberto pela sua regra "rooms".
+   ============================================================ */
+const firebaseConfig = {
+  apiKey: "AIzaSyACkQvVLWyCItyEjPaMRpYSgsP2luAq2WQ",
+  authDomain: "memory-wars-6bb6b.firebaseapp.com",
+  databaseURL: "https://memory-wars-6bb6b-default-rtdb.firebaseio.com",
+  projectId: "memory-wars-6bb6b",
+  storageBucket: "memory-wars-6bb6b.firebasestorage.app",
+  messagingSenderId: "635970774104",
+  appId: "1:635970774104:web:9b432ef95c179939a5d62d"
+};
+const ROOT = 'rooms';
+const PREFIX = 'arena_';
+const FB_VER = '10.12.2';
+const MOCK = new URLSearchParams(location.search).has('mock'); // teste local sem Firebase (duas abas)
+const WINS_NEEDED = 3, MAX_ROUNDS = 9;
+
+/* ============================================================
+   BACKEND
+   ============================================================ */
+function mockBackend() {
+  const KEY = 'arena_mock_db', ch = new BroadcastChannel('arena_mock');
+  const load = () => { try { return JSON.parse(localStorage.getItem(KEY)) || {}; } catch { return {}; } };
+  const save = d => localStorage.setItem(KEY, JSON.stringify(d));
+  const clean = v => {
+    if (v === null || v === undefined) return undefined;
+    if (typeof v !== 'object') return v;
+    const o = {}; for (const k in v) { const c = clean(v[k]); if (c !== undefined) o[k] = c; }
+    return Object.keys(o).length ? o : undefined;
+  };
+  const keys = p => p.split('/').filter(Boolean);
+  const getP = (d, p) => { let a = d; for (const k of keys(p)) { if (a == null) return null; a = a[k]; } return a === undefined ? null : a; };
+  const setP = (d, p, v) => {
+    const ks = keys(p); let a = d;
+    for (let i = 0; i < ks.length - 1; i++) { if (typeof a[ks[i]] !== 'object' || a[ks[i]] === null) a[ks[i]] = {}; a = a[ks[i]]; }
+    const c = clean(v); if (c === undefined) delete a[ks[ks.length - 1]]; else a[ks[ks.length - 1]] = c;
+  };
+  const listeners = new Set();
+  const fire = () => { const d = load(); listeners.forEach(l => l(d)); };
+  ch.onmessage = fire;
+  const write = fn => { const d = load(); const r = fn(d); save(d); ch.postMessage(1); setTimeout(fire, 0); return r; };
+  return {
+    get: async p => getP(load(), p),
+    set: async (p, v) => write(d => setP(d, p, v)),
+    update: async (p, o) => write(d => { for (const k in o) setP(d, p + '/' + k, o[k]); }),
+    transaction: async (p, fn) => write(d => {
+      const cur = getP(d, p), next = fn(structuredClone(cur));
+      if (next === undefined) return { committed: false, value: cur };
+      setP(d, p, next); return { committed: true, value: getP(d, p) };
+    }),
+    listen: (p, cb) => {
+      let last; const l = d => { const v = getP(d, p), j = JSON.stringify(v); if (j !== last) { last = j; cb(v); } };
+      listeners.add(l); setTimeout(() => l(load()), 0); return () => listeners.delete(l);
+    },
+    onDisconnectSet: async (p, v) => { addEventListener('pagehide', () => write(d => setP(d, p, v))); },
+    onConnected: () => {},
+    onOffset: () => {}
+  };
+}
+
+async function firebaseBackend() {
+  const sources = [
+    [`https://www.gstatic.com/firebasejs/${FB_VER}/firebase-app.js`, `https://www.gstatic.com/firebasejs/${FB_VER}/firebase-database.js`],
+    [`https://esm.sh/firebase@${FB_VER}/app`, `https://esm.sh/firebase@${FB_VER}/database`],
+    [`https://cdn.skypack.dev/firebase@${FB_VER}/app`, `https://cdn.skypack.dev/firebase@${FB_VER}/database`]
+  ];
+  let appM, dbM, lastErr;
+  for (const [a, d] of sources) {
+    try { [appM, dbM] = await Promise.all([import(a), import(d)]); break; }
+    catch (e) { lastErr = e; console.warn('Fonte do Firebase falhou:', a, e); }
+  }
+  if (!appM) throw lastErr;
+  const app = appM.initializeApp(firebaseConfig), db = dbM.getDatabase(app);
+  const R = p => dbM.ref(db, p);
+  return {
+    get: async p => (await dbM.get(R(p))).val(),
+    set: (p, v) => dbM.set(R(p), v),
+    update: (p, o) => dbM.update(R(p), o),
+    transaction: async (p, fn) => {
+      const r = await dbM.runTransaction(R(p), cur => fn(cur));
+      return { committed: r.committed, value: r.snapshot.val() };
+    },
+    listen: (p, cb, err) => dbM.onValue(R(p), s => cb(s.val()), err),
+    onDisconnectSet: (p, v) => dbM.onDisconnect(R(p)).set(v),
+    onConnected: cb => dbM.onValue(R('.info/connected'), s => { if (s.val() === true) cb(); }),
+    onOffset: cb => dbM.onValue(R('.info/serverTimeOffset'), s => cb(s.val() || 0))
+  };
+}
+
+let DB = null;
+let offset = 0;                               // diferença entre o relógio local e o do servidor
+const serverNow = () => Date.now() + offset;  // todos os jogadores medem tempo pelo MESMO relógio
+
+/* ============================================================
+   UTILIDADES / ESTADO
+   ============================================================ */
+const $ = s => document.querySelector(s);
+const esc = s => String(s).replace(/[&<>"']/g, c => ({ '&':'&amp;', '<':'&lt;', '>':'&gt;', '"':'&quot;', "'":'&#39;' }[c]));
+const pk = n => 'p' + n;
+const store = {
+  get: k => { try { return sessionStorage.getItem(k); } catch { return null; } },
+  set: (k, v) => { try { sessionStorage.setItem(k, v); } catch {} },
+  del: k => { try { sessionStorage.removeItem(k); } catch {} }
+};
+const uid = store.get('arena_uid') || ('u' + Math.random().toString(36).slice(2, 10));
+store.set('arena_uid', uid);
+
+const st = {
+  uid, code: null, me: 0, name: '', room: null, unsub: null,
+  phaseKey: '', cleanup: null, myResult: null, resolving: 0, resetting: false, rematchSent: false, tickIv: null
+};
+if (MOCK) window.__dbg = st;
+
+const roomPath = () => `${ROOT}/${PREFIX}${st.code}`;
+const myKey = () => pk(st.me);
+const oppN = () => (st.me === 1 ? 2 : 1);
+
+function rng(seed) {
+  let a = seed >>> 0;
+  return () => { a |= 0; a = a + 0x6D2B79F5 | 0; let t = Math.imul(a ^ a >>> 15, 1 | a); t = t + Math.imul(t ^ t >>> 7, 61 | t) ^ t; return ((t ^ t >>> 14) >>> 0) / 4294967296; };
+}
+function genCode() {
+  const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789'; let c = '';
+  for (let i = 0; i < 4; i++) c += chars[Math.floor(Math.random() * chars.length)];
+  return c;
+}
+function persist() { if (st.code) store.set('arena_session', JSON.stringify({ code: st.code, me: st.me, name: st.name })); }
+function showScreen(id) { document.querySelectorAll('.screen').forEach(s => s.classList.remove('show')); $('#' + id).classList.add('show'); window.scrollTo(0, 0); }
+function formAlert(m) { $('#form-alert').textContent = m; }
+let toastTimer;
+function toast(msg, good = true) {
+  const t = $('#toast'); t.textContent = msg; t.classList.toggle('bad', !good); t.classList.add('show');
+  clearTimeout(toastTimer); toastTimer = setTimeout(() => t.classList.remove('show'), 2400);
+}
+function askConfirm(title, text, okLabel = 'Confirmar') {
+  return new Promise(res => {
+    $('#cf-title').textContent = title; $('#cf-text').textContent = text; $('#cf-ok').textContent = okLabel;
+    const ov = $('#confirm-overlay'); ov.classList.add('show');
+    const done = v => { ov.classList.remove('show'); $('#cf-ok').onclick = null; $('#cf-cancel').onclick = null; res(v); };
+    $('#cf-ok').onclick = () => done(true); $('#cf-cancel').onclick = () => done(false);
+  });
+}
+
+/* ============================================================
+   MINIJOGOS
+   Cada um recebe { stage, seed, goAt, now, report } e devolve uma função de limpeza.
+   report(valor, falta) envia o resultado. Menor é melhor, exceto "taps".
+   ============================================================ */
+const GAMES = {
+  reaction: {
+    icon: '⚡', name: 'Reflexo', better: 'low',
+    desc: 'Espere a tela ficar VERDE e toque o mais rápido que puder. Tocar antes da hora é falta e perde a rodada.',
+    fmt: (v, f) => f ? 'FALTA' : `${v} ms`,
+    mount({ stage, seed, goAt, now, report }) {
+      const r = rng(seed), signalAt = goAt + 1500 + Math.floor(r() * 3000);
+      stage.innerHTML = `<div class="rx wait" data-game="reaction"><div class="big">ESPERE…</div><div class="sub">Toque só quando ficar verde</div></div>`;
+      const el = stage.firstChild, big = el.querySelector('.big'); let done = false;
+      const finish = (v, f) => { if (done) return; done = true; clearInterval(iv); report(v, f); };
+      const iv = setInterval(() => {
+        const t = now();
+        if (!done && t >= signalAt && el.classList.contains('wait')) { el.className = 'rx go'; big.textContent = 'TOQUE!'; }
+        if (t > signalAt + 3000) finish(3000, false);
+      }, 16);
+      el.addEventListener('pointerdown', () => {
+        if (done) return; const t = now();
+        if (t < signalAt) { el.className = 'rx foul'; big.textContent = 'CEDO DEMAIS!'; finish(99999, true); }
+        else { big.textContent = `${Math.round(t - signalAt)} ms`; finish(Math.round(t - signalAt), false); }
+      });
+      return () => { done = true; clearInterval(iv); };
+    }
+  },
+  taps: {
+    icon: '🔫', name: 'Metralhadora', better: 'high',
+    desc: 'Toque no botão o MAIS RÁPIDO possível durante 5 segundos. Quem fizer mais toques vence.',
+    fmt: v => `${v} toques`,
+    mount({ stage, goAt, now, report }) {
+      stage.innerHTML = `<div data-game="taps"><div class="tap-time" id="tt">5.0 s</div><div class="tap-count" id="tc">0</div><button id="tapbtn">TOQUE!</button></div>`;
+      const btn = $('#tapbtn'), tc = $('#tc'), tt = $('#tt'); let n = 0, done = false;
+      btn.addEventListener('pointerdown', e => { e.preventDefault(); if (done) return; n++; tc.textContent = n; });
+      btn.addEventListener('contextmenu', e => e.preventDefault());
+      const end = goAt + 5000;
+      const iv = setInterval(() => {
+        const left = end - now(); tt.textContent = Math.max(0, left / 1000).toFixed(1) + ' s';
+        if (left <= 0 && !done) { done = true; clearInterval(iv); btn.disabled = true; report(n, false); }
+      }, 50);
+      return () => { done = true; clearInterval(iv); };
+    }
+  },
+  targets: {
+    icon: '🎯', name: 'Caça aos Alvos', better: 'low',
+    desc: 'Acerte os 8 alvos que vão aparecendo, um por vez. Errar o alvo custa +0,4 s. Vence o menor tempo.',
+    fmt: v => `${(v / 1000).toFixed(2)} s`,
+    mount({ stage, seed, goAt, now, report }) {
+      const r = rng(seed), pts = [];
+      for (let i = 0; i < 8; i++) {
+        let p, tries = 0;
+        do { p = { x: 10 + r() * 80, y: 12 + r() * 76 }; tries++; }
+        while (pts.length && Math.hypot(p.x - pts[pts.length - 1].x, p.y - pts[pts.length - 1].y) < 30 && tries < 12);
+        pts.push(p);
+      }
+      stage.innerHTML = `<div data-game="targets"><div class="field-head"><span id="tg-n">1/8</span><span id="tg-pen"></span></div><div id="field"></div></div>`;
+      const field = $('#field'), nEl = $('#tg-n'), penEl = $('#tg-pen'); let i = 0, penalty = 0, done = false;
+      const show = () => {
+        field.innerHTML = ''; if (i >= 8) return;
+        const b = document.createElement('button'); b.className = 'tgt'; b.style.left = pts[i].x + '%'; b.style.top = pts[i].y + '%';
+        b.addEventListener('pointerdown', e => {
+          e.stopPropagation(); if (done) return; i++; nEl.textContent = `${Math.min(i + 1, 8)}/8`;
+          if (i >= 8) { done = true; field.innerHTML = ''; report(Math.round(now() - goAt) + penalty, false); } else show();
+        });
+        field.appendChild(b);
+      };
+      field.addEventListener('pointerdown', () => {
+        if (done) return; penalty += 400; penEl.textContent = `+${(penalty / 1000).toFixed(1)} s`;
+        field.classList.add('miss'); setTimeout(() => field.classList.remove('miss'), 150);
+      });
+      show();
+      const iv = setInterval(() => { if (!done && now() - goAt > 25000) { done = true; clearInterval(iv); report(25000 + penalty, false); } }, 250);
+      return () => { done = true; clearInterval(iv); };
+    }
+  },
+  odd: {
+    icon: '🔍', name: 'Ache o Diferente', better: 'low',
+    desc: 'Em cada uma das 4 grades há um símbolo levemente diferente. Toque nele. Errar custa +1,5 s.',
+    fmt: v => `${(v / 1000).toFixed(2)} s`,
+    mount({ stage, seed, goAt, now, report }) {
+      const PAIRS = [['😀','😃'], ['🙂','🙃'], ['🍎','🍏'], ['🔵','🟦'], ['🐶','🐕'], ['⭐','🌟'], ['🧡','🟠'], ['🌕','🌝']];
+      const r = rng(seed), grids = [];
+      for (let g = 0; g < 4; g++) grids.push({ pair: PAIRS[Math.floor(r() * PAIRS.length)], odd: Math.floor(r() * 25) });
+      stage.innerHTML = `<div data-game="odd"><div class="field-head"><span id="od-n">Grade 1/4</span><span></span></div><div class="ogrid" id="og"></div><div class="penalty" id="od-pen"></div></div>`;
+      const og = $('#og'), nEl = $('#od-n'), penEl = $('#od-pen'); let gi = 0, penalty = 0, done = false;
+      const build = () => {
+        const g = grids[gi]; og.innerHTML = '';
+        for (let c = 0; c < 25; c++) {
+          const b = document.createElement('button'); b.className = 'ocell'; b.dataset.odd = c === g.odd ? '1' : '0';
+          b.textContent = c === g.odd ? g.pair[1] : g.pair[0];
+          b.addEventListener('pointerdown', () => {
+            if (done) return;
+            if (c === g.odd) {
+              gi++; if (gi >= 4) { done = true; og.innerHTML = ''; report(Math.round(now() - goAt) + penalty, false); }
+              else { nEl.textContent = `Grade ${gi + 1}/4`; build(); }
+            } else { penalty += 1500; penEl.textContent = `Errou! +${(penalty / 1000).toFixed(1)} s`; b.classList.add('bad'); }
+          });
+          og.appendChild(b);
+        }
+      };
+      build();
+      const iv = setInterval(() => { if (!done && now() - goAt > 40000) { done = true; clearInterval(iv); report(40000 + penalty, false); } }, 250);
+      return () => { done = true; clearInterval(iv); };
+    }
+  }
+};
+const GAME_IDS = Object.keys(GAMES);
+function pickGame(seed, n, prev) {
+  const r = rng((seed ^ Math.imul(n, 2654435761)) >>> 0), opts = GAME_IDS.filter(g => g !== prev);
+  return opts[Math.floor(r() * opts.length)];
+}
+const roundSeed = (seed, n) => ((seed * 31 + n * 977) >>> 0);
+
+/** 0 = empate, 1 ou 2 = vencedor da rodada */
+function winnerOf(game, a, b) {
+  if (a.f && b.f) return 0; if (a.f) return 2; if (b.f) return 1;
+  if (a.v === b.v) return 0;
+  const low = GAMES[game].better === 'low';
+  return (low ? a.v < b.v : a.v > b.v) ? 1 : 2;
+}
+
+/* ============================================================
+   SALAS
+   ============================================================ */
+function setBusy(b) { ['#btn-create', '#btn-join'].forEach(s => { $(s).disabled = b; }); }
+function newRoundObj(seed, n, prev, delayMs) {
+  return { n, game: pickGame(seed, n, prev), seed: roundSeed(seed, n), startAt: serverNow() + delayMs };
+}
+
+async function createRoom() {
+  st.name = $('#name-input').value.trim() || 'Jogador 1';
+  setBusy(true); formAlert('Criando sala...');
+  try {
+    let code, tries = 0;
+    do { code = genCode(); tries++; } while ((await DB.get(`${ROOT}/${PREFIX}${code}`)) && tries < 8);
+    Object.assign(st, { code, me: 1, myResult: null, phaseKey: '', rematchSent: false });
+    await DB.set(roomPath(), {
+      code, game: 'arena', status: 'waiting', seed: (Math.random() * 2147483647) | 0,
+      createdAt: Date.now(), updatedAt: Date.now(), lastResolved: 0, wins: { p1: 0, p2: 0 },
+      players: { p1: { name: st.name, uid: st.uid, online: true } }
+    });
+    persist(); $('#room-code').textContent = code; formAlert(''); showScreen('screen-waiting');
+    startListening(); announcePresence();
+  } catch (e) {
+    console.error(e); formAlert('Erro de conexão com o Firebase. Confira a config e as regras do banco.');
+  } finally { setBusy(false); }
+}
+
+async function joinRoom() {
+  st.name = $('#name-input').value.trim() || 'Jogador 2';
+  const code = $('#join-code-input').value.trim().toUpperCase();
+  if (!code) { formAlert('Digite um código de sala.'); return; }
+  setBusy(true); formAlert('Procurando sala...');
+  try {
+    const res = await DB.transaction(`${ROOT}/${PREFIX}${code}`, cur => {
+      if (cur === null) return null;
+      if (cur.status !== 'waiting' || (cur.players && cur.players.p2)) return undefined;
+      cur.players = cur.players || {};
+      cur.players.p2 = { name: st.name, uid: st.uid, online: true };
+      cur.status = 'playing'; cur.updatedAt = Date.now();
+      cur.round = newRoundObj(cur.seed, 1, null, 6000);
+      return cur;
+    });
+    const v = res.value;
+    if (!v) { formAlert('Sala não encontrada. Confira o código.'); return; }
+    if (!(v.players && v.players.p2 && v.players.p2.uid === st.uid)) { formAlert('Sala cheia ou já em andamento.'); return; }
+    Object.assign(st, { code, me: 2, myResult: null, phaseKey: '', rematchSent: false });
+    persist(); formAlert('');
+    startListening(); announcePresence();
+  } catch (e) {
+    console.error(e); formAlert('Erro de conexão com o Firebase. Confira a config e as regras do banco.');
+  } finally { setBusy(false); }
+}
+
+async function tryResume() {
+  let s = null;
+  try { s = JSON.parse(store.get('arena_session')); } catch {}
+  if (!s || !s.code) return;
+  try {
+    const r = await DB.get(`${ROOT}/${PREFIX}${s.code}`);
+    const mine = r && r.players && r.players[pk(s.me)];
+    if (!r || r.status === 'finished' || !mine || mine.uid !== st.uid) { store.del('arena_session'); return; }
+    Object.assign(st, { code: s.code, me: s.me, name: s.name });
+    startListening(); announcePresence();
+  } catch (e) { console.error(e); }
+}
+
+function startListening() {
+  stopListening();
+  st.unsub = DB.listen(roomPath(), onRoom, err => { console.error(err); toast('Erro de conexão', false); });
+  DB.onConnected(() => { if (st.code) announcePresence(); });
+  if (!st.tickIv) st.tickIv = setInterval(tick, 50);
+}
+function stopListening() { if (st.unsub) { st.unsub(); st.unsub = null; } }
+function announcePresence() {
+  const p = `${roomPath()}/players/${myKey()}/online`;
+  Promise.resolve(DB.onDisconnectSet(p, false)).catch(() => {});
+  Promise.resolve(DB.set(p, true)).catch(() => {});
+}
+function hardReset() { stopListening(); store.del('arena_session'); location.href = location.pathname + (MOCK ? '?mock' : ''); }
+
+async function leaveRoom() {
+  const r = st.room;
+  if (r && r.status === 'playing') {
+    if (!(await askConfirm('Sair da partida?', 'Isso conta como desistência.', 'Sair'))) return;
+    try { await DB.update(roomPath(), { status: 'finished', winner: oppN(), reason: 'left', updatedAt: Date.now() }); } catch {}
+  } else if (r && r.status === 'waiting') { try { await DB.set(roomPath(), null); } catch {} }
+  hardReset();
+}
+async function claimWin() {
+  if (!(await askConfirm('Encerrar a partida?', 'O oponente está desconectado. Você será declarado vencedor.', 'Encerrar e vencer'))) return;
+  try { await DB.update(roomPath(), { status: 'finished', winner: st.me, reason: 'left', updatedAt: Date.now() }); } catch (e) { console.error(e); }
+}
+
+/* ============================================================
+   FLUXO DAS RODADAS
+   ============================================================ */
+function onRoom(r) {
+  if (r === null) { if (st.room) { toast('A sala foi encerrada.', false); setTimeout(hardReset, 1200); } return; }
+  st.room = r;
+  if (r.status === 'waiting') { $('#room-code').textContent = r.code; showScreen('screen-waiting'); return; }
+  if (!$('#screen-game').classList.contains('show')) showScreen('screen-game');
+
+  if (r.status === 'playing' && r.round) {
+    const n = r.round.n, rr = r.results && r.results['r' + n];
+    if (rr && rr.p1 && rr.p2 && (r.lastResolved || 0) < n && st.resolving !== n) resolveRound(n);
+  }
+  if (r.status === 'finished' && r.rematch && r.rematch.p1 && r.rematch.p2 && !st.resetting) doRematch();
+  renderHud(); tick();
+}
+
+function resolveRound(n) {
+  st.resolving = n;
+  DB.transaction(roomPath(), cur => {
+    if (cur === null) return null;
+    if (cur.status !== 'playing' || !cur.round || cur.round.n !== n || (cur.lastResolved || 0) >= n) return cur;
+    const rr = cur.results && cur.results['r' + n];
+    if (!rr || !rr.p1 || !rr.p2) return cur;
+    const game = cur.round.game, w = winnerOf(game, rr.p1, rr.p2);
+    cur.wins = cur.wins || { p1: 0, p2: 0 };
+    if (w) cur.wins[pk(w)] = (cur.wins[pk(w)] || 0) + 1;
+    cur.lastResolved = n;
+    cur.last = { n, game, winner: w, p1: rr.p1, p2: rr.p2 };
+    const a = cur.wins.p1 || 0, b = cur.wins.p2 || 0;
+    if (a >= WINS_NEEDED || b >= WINS_NEEDED || n >= MAX_ROUNDS) {
+      cur.status = 'finished'; cur.winner = a > b ? 1 : (b > a ? 2 : 0); cur.reason = 'score';
+    } else cur.round = newRoundObj(cur.seed, n + 1, game, 6500);
+    cur.updatedAt = Date.now();
+    return cur;
+  }).catch(console.error).finally(() => { if (st.resolving === n) st.resolving = 0; });
+}
+
+function doRematch() {
+  st.resetting = true;
+  DB.transaction(roomPath(), cur => {
+    if (cur === null) return null;
+    if (cur.status === 'finished' && cur.rematch && cur.rematch.p1 && cur.rematch.p2) {
+      const seed = (Math.random() * 2147483647) | 0;
+      cur.status = 'playing'; cur.seed = seed; cur.wins = { p1: 0, p2: 0 }; cur.results = null; cur.last = null;
+      cur.lastResolved = 0; cur.winner = null; cur.reason = null; cur.rematch = null;
+      cur.round = newRoundObj(seed, 1, null, 6000); cur.updatedAt = Date.now();
+    }
+    return cur;
+  }).catch(console.error).finally(() => { st.resetting = false; });
+}
+async function sendRematch() {
+  st.rematchSent = true; $('#btn-rematch').disabled = true; $('#btn-rematch').textContent = 'Aguardando oponente…';
+  try { await DB.update(roomPath(), { ['rematch/' + myKey()]: true }); } catch (e) { console.error(e); st.rematchSent = false; }
+}
+
+async function reportResult(n, v, f) {
+  const r = st.room; if (!r) return;
+  const key = `${r.seed}:${n}`;
+  if (st.myResult && st.myResult.key === key) return;
+  st.myResult = { key, v, f: !!f };
+  try { await DB.set(`${roomPath()}/results/r${n}/${myKey()}`, { v, f: !!f }); }
+  catch (e) { console.error(e); toast('Erro ao enviar o resultado', false); }
+}
+
+/* ============================================================
+   RENDER
+   ============================================================ */
+function pips(n) { return '●'.repeat(n) + '○'.repeat(Math.max(0, WINS_NEEDED - n)); }
+
+function renderHud() {
+  const r = st.room; if (!r) return;
+  const me = st.me, opp = oppN();
+  const myP = (r.players && r.players[pk(me)]) || {}, oppP = (r.players && r.players[pk(opp)]) || {};
+  const w = r.wins || {}, mw = w[pk(me)] || 0, ow = w[pk(opp)] || 0;
+  $('#me-name').textContent = myP.name || 'Você'; $('#opp-name').textContent = oppP.name || 'Oponente';
+  $('#me-pips').textContent = pips(mw); $('#opp-pips').textContent = pips(ow);
+  $('#vs-score').textContent = `${mw} × ${ow}`;
+  $('#offline-banner').classList.toggle('hidden', !(r.status === 'playing' && oppP.online === false));
+  $('#leave-btn').classList.toggle('hidden', r.status === 'finished');
+  if (r.status === 'finished') showEnd(r); else { $('#end-overlay').classList.remove('show'); st.rematchSent = false; }
+}
+
+function showEnd(r) {
+  const me = st.me, opp = oppN();
+  const oppName = (r.players && r.players[pk(opp)] && r.players[pk(opp)].name) || 'Oponente';
+  const w = r.wins || {};
+  const title = $('#end-title');
+  if (r.winner === 0) { title.textContent = '🤝 Empate!'; title.className = 'tie'; }
+  else if (r.winner === me) { title.textContent = '🏆 Você venceu!'; title.className = ''; }
+  else { title.textContent = '😵 Você perdeu'; title.className = 'lose'; }
+  $('#end-a').textContent = w[pk(me)] || 0; $('#end-b').textContent = w[pk(opp)] || 0;
+  $('#end-reason').textContent = r.reason === 'left'
+    ? (r.winner === me ? `${oppName} saiu da partida.` : 'Você saiu da partida.')
+    : (r.winner === 0 ? 'Ninguém levou a melhor nas 9 rodadas.' : (r.winner === me ? `Você derrotou ${oppName}!` : `${oppName} levou essa.`));
+  const canRematch = r.reason !== 'left';
+  const rb = $('#btn-rematch'); rb.classList.toggle('hidden', !canRematch);
+  const oppWants = r.rematch && r.rematch[pk(opp)];
+  if (!st.rematchSent) { rb.disabled = false; rb.textContent = oppWants ? '⚔️ Aceitar revanche' : '⚔️ Revanche'; }
+  $('#end-overlay').classList.add('show');
+}
+
+function fmtVal(game, x) { return x ? GAMES[game].fmt(x.v, x.f) : '—'; }
+
+function tick() {
+  const r = st.room;
+  if (!r || r.status !== 'playing' || !r.round || !$('#screen-game').classList.contains('show')) return;
+  const t = serverNow(), n = r.round.n, startAt = r.round.startAt, game = r.round.game;
+  const rr = (r.results && r.results['r' + n]) || {};
+  const mine = rr[myKey()] || (st.myResult && st.myResult.key === `${r.seed}:${n}` ? st.myResult : null);
+  const hasLast = r.last && r.last.n === n - 1;
+  let phase, secs = 0;
+  if (t < startAt) { phase = (hasLast && startAt - t > 3000) ? 'result' : 'countdown'; secs = Math.ceil((startAt - t) / 1000); }
+  else phase = mine ? 'wait' : 'play';
+  const shownSecs = (phase === 'countdown' && secs <= 3) ? secs : 0;
+  const key = `${r.seed}:${n}:${phase}:${shownSecs}`;
+  if (key === st.phaseKey) return;
+  const prevPhase = st.phaseKey.split(':')[2];
+  st.phaseKey = key;
+
+  $('#roundbar').textContent = `Rodada ${n} · ${GAMES[game].icon} ${GAMES[game].name}`;
+  const stage = $('#stage-inner');
+  if (phase !== 'play' && st.cleanup) { st.cleanup(); st.cleanup = null; }
+
+  if (phase === 'result') {
+    const L = r.last, me = st.me, opp = oppN();
+    const mv = L[pk(me)], ov = L[pk(opp)], w = L.winner;
+    const verdict = w === 0 ? ['tie', 'Empate!'] : (w === me ? ['win', 'Ponto seu! 🔥'] : ['lose', 'Ponto do oponente']);
+    stage.innerHTML = `<div class="result-card"><div class="rc-game">${GAMES[L.game].icon} ${GAMES[L.game].name} · rodada ${L.n}</div>
+      <div class="rc-row ${w === me ? 'win' : (w === 0 ? '' : 'lose')}"><span>Você</span><b>${esc(fmtVal(L.game, mv))}</b></div>
+      <div class="rc-row ${w === opp ? 'win' : (w === 0 ? '' : 'lose')}"><span>${esc(((r.players[pk(opp)] || {}).name) || 'Oponente')}</span><b>${esc(fmtVal(L.game, ov))}</b></div>
+      <div class="rc-verdict ${verdict[0]}">${verdict[1]}</div><div class="rc-next">Próximo minijogo em instantes…</div></div>`;
+  } else if (phase === 'countdown') {
+    const G = GAMES[game];
+    stage.innerHTML = `<div class="gcard"><div class="gicon">${G.icon}</div><h2>${G.name}</h2><p>${G.desc}</p>
+      <div class="cd-num">${shownSecs || '…'}</div><div class="cd-label">Prepare-se</div></div>`;
+  } else if (phase === 'play') {
+    st.cleanup = GAMES[game].mount({
+      stage, seed: r.round.seed, goAt: startAt, now: serverNow,
+      report: (v, f) => reportResult(n, v, f)
+    });
+  } else if (phase === 'wait') {
+    const my = mine;
+    stage.innerHTML = `<div class="result-card"><div class="rc-game">${GAMES[game].icon} ${GAMES[game].name}</div>
+      <div class="rc-row"><span>Seu resultado</span><b>${esc(GAMES[game].fmt(my.v, my.f))}</b></div>
+      <div class="rc-next" style="margin-top:14px;font-size:.85rem">⏳ Aguardando o oponente terminar…</div></div>`;
+  }
+}
+
+/* ============================================================
+   INICIALIZAÇÃO
+   ============================================================ */
+$('#btn-create').onclick = createRoom;
+$('#btn-join').onclick = joinRoom;
+$('#btn-cancel').onclick = leaveRoom;
+$('#leave-btn').onclick = leaveRoom;
+$('#btn-claim').onclick = claimWin;
+$('#btn-again').onclick = hardReset;
+$('#btn-rematch').onclick = sendRematch;
+$('#room-code').onclick = () => {
+  if (!st.code || !navigator.clipboard) return;
+  navigator.clipboard.writeText(st.code).then(() => toast('Código copiado!')).catch(() => {});
+};
+$('#join-code-input').addEventListener('keydown', e => { if (e.key === 'Enter') joinRoom(); });
+
+(async () => {
+  try {
+    DB = MOCK ? mockBackend() : await firebaseBackend();
+    DB.onOffset(o => { offset = o; });
+  } catch (e) {
+    console.error(e);
+    formAlert('Não consegui carregar o Firebase (rede, DNS ou bloqueador de anúncios?). Abra por https, desative bloqueadores e recarregue.');
+    setBusy(true); return;
+  }
+  await tryResume();
+})();
+</script>
+</body>
+</html>
